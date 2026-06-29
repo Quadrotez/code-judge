@@ -1,0 +1,148 @@
+[
+  {
+    "id": "task_sum",
+    "title": "Сумма двух чисел",
+    "description": "Прочитай два целых числа и выведи их сумму.\n\nЭто базовая задача для проверки ввода-вывода.",
+    "inputFormat": "Два целых числа на отдельных строках",
+    "outputFormat": "Одно целое число - их сумма",
+    "solution": "a = int(input())\nb = int(input())\nprint(a + b)",
+    "timeLimit": 1000,
+    "memoryLimit": 256,
+    "examples": [
+      {
+        "input": "1\n2",
+        "output": "3",
+        "explanation": "1 + 2 = 3"
+      },
+      {
+        "input": "-5\n10",
+        "output": "5",
+        "explanation": "-5 + 10 = 5"
+      }
+    ],
+    "tests": [
+      {"input": "1\n2", "output": "3"},
+      {"input": "-5\n10", "output": "5"},
+      {"input": "0\n0", "output": "0"},
+      {"input": "100\n200", "output": "300"},
+      {"input": "-10\n-20", "output": "-30"}
+    ]
+  },
+  {
+    "id": "task_max",
+    "title": "Максимум из трех чисел",
+    "description": "Дано три целых числа. Найди и выведи максимальное из них.",
+    "inputFormat": "Три целых числа на отдельных строках",
+    "outputFormat": "Одно целое число - максимум",
+    "solution": "a = int(input())\nb = int(input())\nc = int(input())\nprint(max(a, b, c))",
+    "timeLimit": 1000,
+    "memoryLimit": 256,
+    "examples": [
+      {
+        "input": "1\n2\n3",
+        "output": "3",
+        "explanation": "Максимум: 3"
+      },
+      {
+        "input": "10\n5\n8",
+        "output": "10",
+        "explanation": "Максимум: 10"
+      }
+    ],
+    "tests": [
+      {"input": "1\n2\n3", "output": "3"},
+      {"input": "10\n5\n8", "output": "10"},
+      {"input": "-1\n-2\n-3", "output": "-1"},
+      {"input": "5\n5\n5", "output": "5"},
+      {"input": "0\n-1\n1", "output": "1"}
+    ]
+  },
+  {
+    "id": "task_even",
+    "title": "Четные числа",
+    "description": "Дан массив из N чисел. Выведи все четные числа в том порядке, в котором они встречаются.",
+    "inputFormat": "Первая строка - N (количество чисел, 1 ≤ N ≤ 100). Затем N целых чисел на отдельных строках.",
+    "outputFormat": "Четные числа по одному на строке. Если четных чисел нет, ничего не выводить.",
+    "solution": "n = int(input())\nfor _ in range(n):\n    num = int(input())\n    if num % 2 == 0:\n        print(num)",
+    "timeLimit": 1000,
+    "memoryLimit": 256,
+    "examples": [
+      {
+        "input": "4\n1\n2\n3\n4",
+        "output": "2\n4",
+        "explanation": "Четные числа: 2 и 4"
+      },
+      {
+        "input": "3\n1\n3\n5",
+        "output": "",
+        "explanation": "Нет четных чисел"
+      }
+    ],
+    "tests": [
+      {"input": "4\n1\n2\n3\n4", "output": "2\n4"},
+      {"input": "5\n1\n1\n1\n1\n1", "output": ""},
+      {"input": "3\n2\n4\n6", "output": "2\n4\n6"},
+      {"input": "2\n0\n-2", "output": "0\n-2"},
+      {"input": "1\n7", "output": ""}
+    ]
+  },
+  {
+    "id": "task_reverse",
+    "title": "Развернуть число",
+    "description": "Дано целое число N. Разверни его цифры в обратном порядке и выведи результат.",
+    "inputFormat": "Одно целое число N (от -999999 до 999999)",
+    "outputFormat": "Развернутое число",
+    "solution": "n = int(input())\nif n < 0:\n    print('-' + str(abs(n))[::-1])\nelse:\n    print(str(n)[::-1])",
+    "timeLimit": 1000,
+    "memoryLimit": 256,
+    "examples": [
+      {
+        "input": "12345",
+        "output": "54321",
+        "explanation": "12345 → 54321"
+      },
+      {
+        "input": "-123",
+        "output": "-321",
+        "explanation": "-123 → -321"
+      }
+    ],
+    "tests": [
+      {"input": "12345", "output": "54321"},
+      {"input": "-123", "output": "-321"},
+      {"input": "0", "output": "0"},
+      {"input": "100", "output": "001"},
+      {"input": "9", "output": "9"}
+    ]
+  },
+  {
+    "id": "task_fibonacci",
+    "title": "N-е число Фибоначчи",
+    "description": "Дан номер N. Выведи N-е число последовательности Фибоначчи.\n\nПоследовательность: 0, 1, 1, 2, 3, 5, 8, 13, ...\nF(0)=0, F(1)=1, F(n)=F(n-1)+F(n-2)",
+    "inputFormat": "Одно целое число N (0 ≤ N ≤ 30)",
+    "outputFormat": "N-е число Фибоначчи",
+    "solution": "n = int(input())\nif n == 0:\n    print(0)\nelif n == 1:\n    print(1)\nelse:\n    a, b = 0, 1\n    for _ in range(2, n + 1):\n        a, b = b, a + b\n    print(b)",
+    "timeLimit": 1000,
+    "memoryLimit": 256,
+    "examples": [
+      {
+        "input": "0",
+        "output": "0",
+        "explanation": "F(0) = 0"
+      },
+      {
+        "input": "5",
+        "output": "5",
+        "explanation": "F(5) = 5 (последовательность: 0, 1, 1, 2, 3, 5)"
+      }
+    ],
+    "tests": [
+      {"input": "0", "output": "0"},
+      {"input": "1", "output": "1"},
+      {"input": "2", "output": "1"},
+      {"input": "5", "output": "5"},
+      {"input": "10", "output": "55"},
+      {"input": "15", "output": "610"}
+    ]
+  }
+]

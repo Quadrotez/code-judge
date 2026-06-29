@@ -1,0 +1,131 @@
+/* styles/CodeEditor.css */
+.code-editor {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--bg-primary);
+}
+
+.editor-header {
+  background: var(--bg-secondary);
+  padding: 10px 15px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.language-badge {
+  background: #007bff;
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.editor-wrapper {
+  position: relative;
+  overflow: hidden;
+}
+
+.editor-textarea {
+  width: 100%;
+  min-height: 300px;
+  padding: 15px;
+  border: none;
+  font-family: 'Courier New', 'Monaco', monospace;
+  font-size: 14px;
+  line-height: 1.5;
+  resize: vertical;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  tab-size: 2;
+  -moz-tab-size: 2;
+}
+
+.editor-textarea:focus {
+  outline: none;
+  background: var(--bg-primary);
+}
+
+.editor-textarea:disabled {
+  background: var(--bg-secondary);
+  cursor: not-allowed;
+}
+
+.editor-textarea::placeholder {
+  color: var(--text-light);
+}
+
+/* Autocomplete menu */
+.autocomplete-menu {
+  position: absolute;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  max-width: 200px;
+  z-index: 1000;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.autocomplete-item {
+  padding: 8px 12px;
+  cursor: pointer;
+  color: var(--text-primary);
+  transition: background 0.2s;
+  font-family: 'Courier New', monospace;
+  font-size: 13px;
+}
+
+.autocomplete-item:hover,
+.autocomplete-item.selected {
+  background: var(--primary);
+  color: white;
+}
+
+/* Syntax highlighting */
+.keyword {
+  color: #569cd6;
+  font-weight: bold;
+}
+
+.builtin {
+  color: #9cdcfe;
+}
+
+.comment {
+  color: #6a9955;
+  font-style: italic;
+}
+
+.string {
+  color: #ce9178;
+}
+
+.number {
+  color: #b5cea8;
+}
+
+[data-theme="dark"] .keyword {
+  color: #569cd6;
+}
+
+[data-theme="dark"] .builtin {
+  color: #9cdcfe;
+}
+
+[data-theme="dark"] .comment {
+  color: #6a9955;
+}
+
+[data-theme="dark"] .string {
+  color: #ce9178;
+}
+
+[data-theme="dark"] .number {
+  color: #b5cea8;
+}
+
