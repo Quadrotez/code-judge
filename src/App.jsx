@@ -78,7 +78,7 @@ const ProblemPage = () => {
         id: `test_${idx + 1}`
       }))
       
-      const results = await runTests(code, tests, problem.timeLimit)
+      const results = await runTests(code, tests, problem.timeLimit, selectedLanguage)
       setTestResults(results)
       
       // Сохраняем попытку
@@ -178,7 +178,7 @@ const ProblemPage = () => {
               className={`tab ${selectedLanguage === 'cpp' ? 'active' : ''}`}
               onClick={() => setSelectedLanguage('cpp')}
             >
-              C++ (экспериментально)
+              C++
             </button>
           </div>
           
@@ -691,7 +691,6 @@ export default function App() {
             </Link>
             <div className="nav-links">
               <Link to="/">Задачи</Link>
-              <Link to="/admin">Админ</Link>
               <button className="theme-toggle" onClick={toggleTheme} title="Переключить тему">
                 {isDarkMode ? '☀️' : '🌙'}
               </button>
