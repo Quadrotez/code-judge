@@ -239,15 +239,16 @@ export const executePython = async (code, testInput, timeLimit = 5000) => {
     try {
       const startTime = performance.now()
       
-      const inputLines = testInput === '' ? [] : testInput.split('\n')
-      const escapedInput = inputLines.map(line => line.replace(/"/g, '\\"')).join('\\n')
-      
+      // Передаём данные через globals, а не через строковую интерполяцию,
+      // чтобы исключить возможность инъекции через спецсимволы в testInput/code.
+      pyodide.globals.set('_safe_input_data', testInput || '')
+      pyodide.globals.set('_safe_user_code', code || '')
+
       const wrappedCode = `
 import sys
-from io import StringIO
+import builtins
 
-_input_data = """${escapedInput}"""
-_input_lines = _input_data.split('\\n') if _input_data else []
+_input_lines = _safe_input_data.split('\\n') if _safe_input_data else []
 _input_index = 0
 
 def mock_input(prompt=""):
@@ -258,7 +259,6 @@ def mock_input(prompt=""):
         return line
     raise EOFError("No more input")
 
-import builtins
 builtins.input = mock_input
 
 _output_lines = []
@@ -268,12 +268,12 @@ def mock_print(*args, **kwargs):
 builtins.print = mock_print
 
 try:
-    exec("""${code.replace(/"/g, '\\"').replace(/\n/g, '\\n')}""")
+    exec(_safe_user_code)
     _final_output = '\\n'.join(_output_lines) if _output_lines else ''
 except Exception as e:
     _final_output = f"Error: {type(e).__name__}: {e}"
 `
-      
+
       pyodide.runPython(wrappedCode)
       const output = pyodide.runPython('_final_output')
       

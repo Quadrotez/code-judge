@@ -9,12 +9,9 @@ import {
   query,
   where
 } from 'firebase/firestore'
-import { db } from './firebaseConfig'
+import { db, auth } from './firebaseConfig'
 
 const PROBLEMS_COLLECTION = 'problems'
-
-// Get current session token from sessionStorage
-const getSessionToken = () => sessionStorage.getItem('admin_session_token')
 
 export const getProblems = async () => {
   try {
@@ -53,9 +50,8 @@ export const getProblemById = async (id) => {
 
 export const saveProblem = async (problem) => {
   try {
-    // Проверяем авторизацию
-    const sessionToken = getSessionToken()
-    if (!sessionToken) {
+    // Проверяем авторизацию через Firebase Auth
+    if (!auth.currentUser) {
       throw new Error('Unauthorized - admin session required')
     }
     
@@ -81,9 +77,8 @@ export const saveProblem = async (problem) => {
 
 export const deleteProblem = async (id) => {
   try {
-    // Проверяем авторизацию
-    const sessionToken = getSessionToken()
-    if (!sessionToken) {
+    // Проверяем авторизацию через Firebase Auth
+    if (!auth.currentUser) {
       throw new Error('Unauthorized - admin session required')
     }
     
@@ -99,9 +94,8 @@ export const deleteProblem = async (id) => {
 
 export const exportProblems = async () => {
   try {
-    // Проверяем авторизацию
-    const sessionToken = getSessionToken()
-    if (!sessionToken) {
+    // Проверяем авторизацию через Firebase Auth
+    if (!auth.currentUser) {
       throw new Error('Unauthorized - admin session required')
     }
     
@@ -115,9 +109,8 @@ export const exportProblems = async () => {
 
 export const importProblems = async (jsonString) => {
   try {
-    // Проверяем авторизацию
-    const sessionToken = getSessionToken()
-    if (!sessionToken) {
+    // Проверяем авторизацию через Firebase Auth
+    if (!auth.currentUser) {
       throw new Error('Unauthorized - admin session required')
     }
     

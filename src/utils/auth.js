@@ -1,108 +1,93 @@
-// src/utils/auth.js - Firestore version
-import { doc, getDoc, setDoc } from 'firebase/firestore'
-import { db } from './firebaseConfig'
+// src/utils/auth.js - Firebase Authentication version
+import { 
+  signInWithEmailAndPassword, 
+  signOut, 
+  onAuthStateChanged,
+  updatePassword
+} from 'firebase/auth'
+import { auth } from './firebaseConfig'
 
-const ADMIN_CONFIG_DOC = 'admin'
-const ADMIN_CONFIG_COLLECTION = '_config'
+const ADMIN_EMAIL = 'admin@quadrotez.com'
 
-export const initPassword = async (password) => {
+/**
+ * Вход в админку по паролю (email фиксированный)
+ */
+export const checkPassword = async (password) => {
   try {
-    // Проверяем не установлен ли уже пароль
-    const hasPass = await hasPassword()
-    if (hasPass) {
-      throw new Error('Пароль уже установлен')
-    }
-    
-    if (!password) {
-      throw new Error('Пароль не может быть пустым')
-    }
-    
-    // Сохраняем пароль в Firestore
-    const adminDocRef = doc(db, ADMIN_CONFIG_COLLECTION, ADMIN_CONFIG_DOC)
-    await setDoc(adminDocRef, {
-      passwordHash: btoa(password), // base64 encoding (same as server)
-      createdAt: new Date().toISOString()
-    })
-    
-    // Автоматический вход после установки пароля
-    const sessionToken = generateSessionToken()
-    sessionStorage.setItem('admin_session_token', sessionToken)
-    
-    return true
+    const userCredential = await signInWithEmailAndPassword(auth, ADMIN_EMAIL, password)
+    return !!userCredential.user
   } catch (error) {
-    console.error('Error setting password:', error)
+    // Подробный вывод ошибки в консоль браузера для отладки
+    console.error('Firebase Auth Error:', error.code, error.message)
+    
+    // Пробрасываем человекочитаемую ошибку
+    if (error.code === 'auth/user-not-found') {
+      throw new Error('Пользователь admin@quadrotez.com не найден в Firebase Auth')
+    } else if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+      throw new Error('Неверный пароль')
+    } else if (error.code === 'auth/too-many-requests') {
+      throw new Error('Слишком много попыток. Попробуйте позже.')
+    }
+    
     throw error
   }
 }
 
-export const checkPassword = async (password) => {
-  try {
-    if (!password) {
-      return false
-    }
-    
-    const adminDocRef = doc(db, ADMIN_CONFIG_COLLECTION, ADMIN_CONFIG_DOC)
-    const docSnap = await getDoc(adminDocRef)
-    
-    if (!docSnap.exists()) {
-      return false // Пароль не установлен
-    }
-    
-    const storedHash = docSnap.data().passwordHash
-    const inputHash = btoa(password)
-    
-    if (inputHash !== storedHash) {
-      return false // Неправильный пароль
-    }
-    
-    // Пароль верный - создаем сессию
-    const sessionToken = generateSessionToken()
-    sessionStorage.setItem('admin_session_token', sessionToken)
-    
-    return true
-  } catch (error) {
-    console.error('Error checking password:', error)
-    return false
-  }
-}
-
-export const hasPassword = async () => {
-  try {
-    const adminDocRef = doc(db, ADMIN_CONFIG_COLLECTION, ADMIN_CONFIG_DOC)
-    const docSnap = await getDoc(adminDocRef)
-    return docSnap.exists()
-  } catch (error) {
-    console.error('Error checking if password exists:', error)
-    return false
-  }
-}
-
-export const isAdminLoggedIn = () => {
-  return sessionStorage.getItem('admin_session_token') !== null
-}
-
-export const setAdminLoggedIn = (value) => {
-  if (value) {
-    // Ничего не делаем - сессия уже установлена при логине
-    return
-  } else {
-    sessionStorage.removeItem('admin_session_token')
-  }
-}
-
+/**
+ * Выход из системы
+ */
 export const logoutAdmin = async () => {
   try {
-    sessionStorage.removeItem('admin_session_token')
+    await signOut(auth)
   } catch (error) {
-    console.error('Error logging out:', error)
+    console.error('Logout error:', error)
+    throw error
   }
 }
 
-export const getAdminSessionToken = () => {
-  return sessionStorage.getItem('admin_session_token')
+/**
+ * Проверка: авторизован ли админ (синхронная проверка текущего состояния)
+ */
+export const isAdminLoggedIn = () => {
+  return auth.currentUser !== null
 }
 
-// Helper
-const generateSessionToken = () => {
-  return Math.random().toString(36).substring(2, 15)
+/**
+ * Подписка на изменение состояния авторизации (для React)
+ */
+export const onAuthUpdate = (callback) => {
+  return onAuthStateChanged(auth, callback)
+}
+
+/**
+ * Смена пароля для текущего авторизованного пользователя
+ */
+export const changeAdminPassword = async (newPassword) => {
+  const user = auth.currentUser
+  if (!user) {
+    throw new Error('Пользователь не авторизован')
+  }
+  
+  try {
+    await updatePassword(user, newPassword)
+    return true
+  } catch (error) {
+    console.error('Change password error:', error.code, error.message)
+    if (error.code === 'auth/requires-recent-login') {
+      throw new Error('Для смены пароля нужно перезайти в аккаунт (безопасность)')
+    }
+    throw error
+  }
+}
+
+/**
+ * Заглушка для совместимости со старым кодом, так как теперь 
+ * создание первого пользователя происходит в консоли Firebase
+ */
+export const hasPassword = async () => {
+  return true // Считаем что админ всегда существует в Firebase Auth
+}
+
+export const initPassword = async () => {
+  throw new Error('Используйте консоль Firebase для создания первого пользователя')
 }
