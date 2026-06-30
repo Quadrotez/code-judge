@@ -41,25 +41,32 @@ async function initPyodide() {
 
 // Обработка сообщений из главного потока
 self.onmessage = async (event) => {
-  const { code, testInput, timeLimit } = event.data
+  const { type, code, testInput, timeLimit } = event.data
   
-  // Инициализируем Pyodide если нужно
-  if (!pyodideReady) {
+  // Если это команда инициализации
+  if (type === 'init') {
     await initPyodide()
+    return
   }
   
-  if (!pyodideReady) {
-    return // Ошибка уже отправлена
-  }
-  
-  try {
-    // ВАЖНО: Таймер запускается ПОСЛЕ инициализации pyodide
-    const startTime = performance.now()
+  // Если это команда выполнения кода
+  if (type === 'execute') {
+    if (!pyodideReady) {
+      self.postMessage({
+        type: 'error',
+        message: 'Pyodide не инициализирован'
+      })
+      return
+    }
     
-    const inputLines = testInput === '' ? [] : testInput.split('\n')
-    const escapedInput = inputLines.map(line => line.replace(/"/g, '\\"')).join('\\n')
-    
-    const wrappedCode = `
+    try {
+      // ВАЖНО: Таймер запускается ДО выполнения кода
+      const startTime = performance.now()
+      
+      const inputLines = testInput === '' ? [] : testInput.split('\n')
+      const escapedInput = inputLines.map(line => line.replace(/"/g, '\\"')).join('\\n')
+      
+      const wrappedCode = `
 import sys
 from io import StringIO
 
@@ -90,32 +97,33 @@ try:
 except Exception as e:
     _final_output = f"Error: {type(e).__name__}: {e}"
 `
-    
-    pyodide.runPython(wrappedCode)
-    const output = pyodide.runPython('_final_output')
-    
-    const endTime = performance.now()
-    const executionTime = endTime - startTime
-    
-    // Проверяем, не превышен ли лимит времени
-    if (executionTime > timeLimit) {
+      
+      pyodide.runPython(wrappedCode)
+      const output = pyodide.runPython('_final_output')
+      
+      const endTime = performance.now()
+      const executionTime = endTime - startTime
+      
+      // Проверяем, не превышен ли лимит времени
+      if (timeLimit > 0 && executionTime > timeLimit) {
+        self.postMessage({
+          type: 'timeout',
+          timeLimit,
+          actualTime: Math.round(executionTime)
+        })
+      } else {
+        self.postMessage({
+          type: 'success',
+          output: String(output),
+          executionTime: Math.round(executionTime)
+        })
+      }
+      
+    } catch (error) {
       self.postMessage({
-        type: 'timeout',
-        timeLimit,
-        actualTime: Math.round(executionTime)
-      })
-    } else {
-      self.postMessage({
-        type: 'success',
-        output: String(output),
-        executionTime: Math.round(executionTime)
+        type: 'error',
+        message: `${error.message}`
       })
     }
-    
-  } catch (error) {
-    self.postMessage({
-      type: 'error',
-      message: `${error.message}`
-    })
   }
 }

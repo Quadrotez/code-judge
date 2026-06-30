@@ -29,7 +29,7 @@
   overflow: hidden;
 }
 
-/* Highlight блок поверх textarea */
+/* Highlight блок показывает синтаксис */
 .editor-highlight {
   position: absolute;
   top: 0;
@@ -42,7 +42,7 @@
   font-size: 14px;
   line-height: 1.5;
   background: transparent;
-  color: transparent;
+  color: inherit;
   white-space: pre;
   word-wrap: break-word;
   overflow: hidden;
@@ -55,7 +55,6 @@
 .editor-highlight code {
   background: transparent !important;
   padding: 0 !important;
-  color: inherit !important;
 }
 
 .editor-textarea {
@@ -68,40 +67,32 @@
   font-size: 14px;
   line-height: 1.5;
   resize: vertical;
-  background: var(--bg-primary);
-  color: var(--text-primary);
+  background: transparent;
+  color: transparent;
   tab-size: 2;
   -moz-tab-size: 2;
   z-index: 2;
   position: relative;
+  caret-color: var(--text-primary);
+  overflow-y: scroll;
 }
 
 .editor-textarea:focus {
   outline: none;
-  background: var(--bg-primary);
+  background: transparent;
 }
 
 .editor-textarea:disabled {
   background: var(--bg-secondary);
   cursor: not-allowed;
+  color: transparent;
 }
 
 .editor-textarea::placeholder {
   color: var(--text-light);
 }
 
-/* Делаем textarea прозрачным чтобы показать подсвеченный код под ним */
-.editor-textarea {
-  background-color: transparent;
-  color: rgba(0, 0, 0, 0.9);
-  resize: vertical;
-  overflow-y: scroll;
-  caret-color: var(--text-primary);
-}
 
-[data-theme="dark"] .editor-textarea {
-  color: rgba(224, 224, 224, 0.9);
-}
 
 /* Autocomplete menu */
 .autocomplete-menu {

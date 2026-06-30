@@ -27,14 +27,11 @@ export const initPyodide = async () => {
   }
 }
 
-// Инициализация Web Worker для Python
-const initPythonWorker = () => {
-  if (pythonWorker) return pythonWorker
-  
+// Создание нового Web Worker для Python (свежий для каждого запроса)
+const createPythonWorker = () => {
   try {
-    pythonWorker = new Worker(new URL('../workers/pythonExecutor.worker.js', import.meta.url))
-    console.log('✅ Python Web Worker инициализирован')
-    return pythonWorker
+    const worker = new Worker(new URL('../workers/pythonExecutor.worker.js', import.meta.url))
+    return worker
   } catch (error) {
     console.warn('⚠️ Web Worker не поддерживается, используем fallback в основном потоке', error)
     return null
@@ -103,77 +100,126 @@ export const executeCpp = async (code, testInput, timeLimit = 5000) => {
   }
 }
 
-// Выполнить Python код с Web Worker (с правильным timeout)
+// Выполнить Python код с Web Worker (с надежным timeout)
 export const executePython = async (code, testInput, timeLimit = 5000) => {
-  // Сначала пробуем использовать Web Worker
-  const worker = initPythonWorker()
+  // Создаем НОВЫЙ worker для каждого запроса (избегаем конфликтов состояния)
+  const worker = createPythonWorker()
   
   if (worker) {
     return new Promise((resolve) => {
-      let actualTimeLimit = timeLimit
       let messageHandler = null
-      let timer = null
-      let isInitializing = true
+      let timeoutTimer = null
+      let executionTimer = null
+      let resolved = false  // Флаг чтобы не resolve дважды
+      
+      // Функция для финализации (удаление listener и очистка)
+      const cleanup = () => {
+        if (messageHandler && worker) {
+          try {
+            worker.removeEventListener('message', messageHandler)
+          } catch (e) {
+            // Ignore
+          }
+        }
+        if (timeoutTimer) clearTimeout(timeoutTimer)
+        if (executionTimer) clearTimeout(executionTimer)
+        try {
+          worker.terminate()
+        } catch (e) {
+          // Ignore
+        }
+      }
       
       messageHandler = (event) => {
-        const { type, output, executionTime, message, timeLimit: msgTimeLimit, actualTime, initTime } = event.data
+        if (resolved) return  // Уже resolve'ли, игнорируем все остальные сообщения
         
-        // Если получили сообщение об инициализации
+        const { type, output, executionTime, message, timeLimit: msgTimeLimit, actualTime } = event.data
+        
         if (type === 'initialized') {
-          // После инициализации pyodide запускаем таймер с оригинальным timeLimit
-          timer = setTimeout(() => {
-            resolve({
-              success: false,
-              output: '',
-              error: `⏱️ Превышен лимит времени (${timeLimit}ms)`,
-              executionTime: timeLimit
-            })
-            worker.removeEventListener('message', messageHandler)
-          }, timeLimit + 500)
+          // После инициализации отправляем код для выполнения
+          worker.postMessage({ 
+            type: 'execute',
+            code, 
+            testInput, 
+            timeLimit 
+          })
           
-          isInitializing = false
-          // Теперь отправляем основной код для выполнения
-          worker.postMessage({ code, testInput, timeLimit })
+          // Запускаем таймер ТОЛЬКО для выполнения кода
+          if (timeLimit > 0) {
+            executionTimer = setTimeout(() => {
+              if (!resolved) {
+                resolved = true
+                cleanup()
+                resolve({
+                  success: false,
+                  output: '',
+                  error: `⏱️ Превышен лимит времени (${timeLimit}ms)`,
+                  executionTime: timeLimit
+                })
+              }
+            }, timeLimit + 2000)  // Даем запас 2 секунды
+          }
           return
         }
         
         if (type === 'success') {
-          clearTimeout(timer)
-          worker.removeEventListener('message', messageHandler)
-          resolve({
-            success: true,
-            output: output,
-            error: null,
-            executionTime: executionTime
-          })
+          if (!resolved) {
+            resolved = true
+            cleanup()
+            resolve({
+              success: true,
+              output: output,
+              error: null,
+              executionTime: executionTime
+            })
+          }
         } else if (type === 'timeout') {
-          clearTimeout(timer)
-          worker.removeEventListener('message', messageHandler)
-          resolve({
-            success: false,
-            output: '',
-            error: `⏱️ Превышен лимит времени (${msgTimeLimit}ms, выполнялось ${actualTime}ms)`,
-            executionTime: actualTime
-          })
+          if (!resolved) {
+            resolved = true
+            cleanup()
+            resolve({
+              success: false,
+              output: '',
+              error: `⏱️ Превышен лимит времени (${msgTimeLimit}ms, выполнялось ${actualTime}ms)`,
+              executionTime: actualTime
+            })
+          }
         } else if (type === 'error') {
-          clearTimeout(timer)
-          worker.removeEventListener('message', messageHandler)
-          resolve({
-            success: false,
-            output: '',
-            error: `❌ ${message}`,
-            executionTime: 0
-          })
+          if (!resolved) {
+            resolved = true
+            cleanup()
+            resolve({
+              success: false,
+              output: '',
+              error: `❌ ${message}`,
+              executionTime: 0
+            })
+          }
         }
       }
       
       worker.addEventListener('message', messageHandler)
-      // Первый запрос - инициализация pyodide
-      worker.postMessage({ code: '', testInput: '', timeLimit: 0 })
+      
+      // Запускаем инициализацию worker'а
+      worker.postMessage({ type: 'init' })
+      
+      // Страховка: если worker совсем зависнет на инициализации
+      timeoutTimer = setTimeout(() => {
+        if (!resolved) {
+          resolved = true
+          cleanup()
+          resolve({
+            success: false,
+            output: '',
+            error: '❌ Worker инициализация заняла слишком много времени',
+            executionTime: 0
+          })
+        }
+      }, 30000)  // 30 сек максимум на инициализацию
     })
   }
   
-  // Fallback: выполнить в основном потоке (старый метод)
+  // Fallback: выполнить в основном потоке
   console.warn('⚠️ Используется fallback выполнение Python в основном потоке')
   
   if (!pyodideReady) {
@@ -191,7 +237,6 @@ export const executePython = async (code, testInput, timeLimit = 5000) => {
     }, timeLimit + 500)
     
     try {
-      // ВАЖНО: Запускаем таймер ПОСЛЕ инициализации pyodide
       const startTime = performance.now()
       
       const inputLines = testInput === '' ? [] : testInput.split('\n')
