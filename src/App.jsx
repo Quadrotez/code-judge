@@ -683,7 +683,7 @@ export default function App() {
 
   return (
     <ThemeContext.Provider value={{ isDarkMode, toggleTheme }}>
-      <Router basename="/">
+      <Router basename="/code-judge/">
         <div className="app" data-theme={isDarkMode ? 'dark' : 'light'}>
           <nav className="navbar">
             <Link to="/" className="logo">

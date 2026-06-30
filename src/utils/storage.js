@@ -1,14 +1,32 @@
-// utils/storage.js
-const API_BASE = '/api'
+// src/utils/storage.js - Firestore version
+import { 
+  collection, 
+  getDocs, 
+  doc, 
+  getDoc, 
+  setDoc, 
+  deleteDoc,
+  query,
+  where
+} from 'firebase/firestore'
+import { db } from './firebaseConfig'
+
+const PROBLEMS_COLLECTION = 'problems'
 
 // Get current session token from sessionStorage
 const getSessionToken = () => sessionStorage.getItem('admin_session_token')
 
 export const getProblems = async () => {
   try {
-    const response = await fetch(`${API_BASE}/problems`)
-    if (!response.ok) throw new Error('Failed to fetch problems')
-    return await response.json()
+    const querySnapshot = await getDocs(collection(db, PROBLEMS_COLLECTION))
+    const problems = []
+    querySnapshot.forEach((doc) => {
+      problems.push({
+        id: doc.id,
+        ...doc.data()
+      })
+    })
+    return problems
   } catch (error) {
     console.error('Error fetching problems:', error)
     return []
@@ -17,9 +35,16 @@ export const getProblems = async () => {
 
 export const getProblemById = async (id) => {
   try {
-    const response = await fetch(`${API_BASE}/problems/${id}`)
-    if (!response.ok) throw new Error('Problem not found')
-    return await response.json()
+    const docRef = doc(db, PROBLEMS_COLLECTION, id)
+    const docSnap = await getDoc(docRef)
+    
+    if (docSnap.exists()) {
+      return {
+        id: docSnap.id,
+        ...docSnap.data()
+      }
+    }
+    return null
   } catch (error) {
     console.error('Error fetching problem:', error)
     return null
@@ -28,18 +53,26 @@ export const getProblemById = async (id) => {
 
 export const saveProblem = async (problem) => {
   try {
+    // Проверяем авторизацию
     const sessionToken = getSessionToken()
-    const response = await fetch(`${API_BASE}/problems`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-admin-session': sessionToken || ''
-      },
-      body: JSON.stringify(problem)
+    if (!sessionToken) {
+      throw new Error('Unauthorized - admin session required')
+    }
+    
+    // Используем title как ID или генерируем новый
+    const problemId = problem.id || `problem_${Date.now()}`
+    
+    const docRef = doc(db, PROBLEMS_COLLECTION, problemId)
+    await setDoc(docRef, {
+      ...problem,
+      updatedAt: new Date().toISOString()
     })
     
-    if (!response.ok) throw new Error('Failed to save problem')
-    return await response.json()
+    return {
+      id: problemId,
+      ...problem,
+      updatedAt: new Date().toISOString()
+    }
   } catch (error) {
     console.error('Error saving problem:', error)
     throw error
@@ -48,16 +81,16 @@ export const saveProblem = async (problem) => {
 
 export const deleteProblem = async (id) => {
   try {
+    // Проверяем авторизацию
     const sessionToken = getSessionToken()
-    const response = await fetch(`${API_BASE}/problems/${id}`, {
-      method: 'DELETE',
-      headers: {
-        'x-admin-session': sessionToken || ''
-      }
-    })
+    if (!sessionToken) {
+      throw new Error('Unauthorized - admin session required')
+    }
     
-    if (!response.ok) throw new Error('Failed to delete problem')
-    return await response.json()
+    const docRef = doc(db, PROBLEMS_COLLECTION, id)
+    await deleteDoc(docRef)
+    
+    return { success: true }
   } catch (error) {
     console.error('Error deleting problem:', error)
     throw error
@@ -66,15 +99,13 @@ export const deleteProblem = async (id) => {
 
 export const exportProblems = async () => {
   try {
+    // Проверяем авторизацию
     const sessionToken = getSessionToken()
-    const response = await fetch(`${API_BASE}/admin/export`, {
-      headers: {
-        'x-admin-session': sessionToken || ''
-      }
-    })
+    if (!sessionToken) {
+      throw new Error('Unauthorized - admin session required')
+    }
     
-    if (!response.ok) throw new Error('Failed to export problems')
-    const problems = await response.json()
+    const problems = await getProblems()
     return JSON.stringify(problems, null, 2)
   } catch (error) {
     console.error('Error exporting problems:', error)
@@ -84,26 +115,38 @@ export const exportProblems = async () => {
 
 export const importProblems = async (jsonString) => {
   try {
+    // Проверяем авторизацию
+    const sessionToken = getSessionToken()
+    if (!sessionToken) {
+      throw new Error('Unauthorized - admin session required')
+    }
+    
     const problems = JSON.parse(jsonString)
     if (!Array.isArray(problems)) {
       throw new Error('Invalid format: must be an array')
     }
     
-    const sessionToken = getSessionToken()
-    const response = await fetch(`${API_BASE}/admin/import`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-admin-session': sessionToken || ''
-      },
-      body: JSON.stringify(problems)
-    })
+    // Удаляем все старые проблемы
+    const existingProblems = await getProblems()
+    for (const problem of existingProblems) {
+      const docRef = doc(db, PROBLEMS_COLLECTION, problem.id)
+      await deleteDoc(docRef)
+    }
     
-    if (!response.ok) throw new Error('Failed to import problems')
+    // Добавляем новые
+    for (const problem of problems) {
+      const problemId = problem.id || `problem_${Date.now()}`
+      const docRef = doc(db, PROBLEMS_COLLECTION, problemId)
+      await setDoc(docRef, {
+        ...problem,
+        importedAt: new Date().toISOString()
+      })
+    }
+    
     return true
   } catch (error) {
     console.error('Import error:', error)
-    return false
+    throw error
   }
 }
 
@@ -125,4 +168,3 @@ export const getSubmissions = (problemId) => {
   const submissions = JSON.parse(localStorage.getItem('submissions') || '[]')
   return submissions.filter(s => s.problemId === problemId)
 }
-

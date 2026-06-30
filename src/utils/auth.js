@@ -1,40 +1,32 @@
-// utils/auth.js
-const API_BASE = '/api'
+// src/utils/auth.js - Firestore version
+import { doc, getDoc, setDoc } from 'firebase/firestore'
+import { db } from './firebaseConfig'
+
+const ADMIN_CONFIG_DOC = 'admin'
+const ADMIN_CONFIG_COLLECTION = '_config'
 
 export const initPassword = async (password) => {
   try {
-    const response = await fetch(`${API_BASE}/admin/set-password`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ password })
-    })
-    
-    if (!response.ok) {
-      let errorMsg = 'Failed to set password'
-      try {
-        const error = await response.json()
-        errorMsg = error.error || errorMsg
-      } catch (e) {
-        errorMsg = `Server error: ${response.status} ${response.statusText}`
-      }
-      throw new Error(errorMsg)
+    // Проверяем не установлен ли уже пароль
+    const hasPass = await hasPassword()
+    if (hasPass) {
+      throw new Error('Пароль уже установлен')
     }
     
-    // Auto-login after password setup
-    const loginResponse = await fetch(`${API_BASE}/admin/login`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ password })
+    if (!password) {
+      throw new Error('Пароль не может быть пустым')
+    }
+    
+    // Сохраняем пароль в Firestore
+    const adminDocRef = doc(db, ADMIN_CONFIG_COLLECTION, ADMIN_CONFIG_DOC)
+    await setDoc(adminDocRef, {
+      passwordHash: btoa(password), // base64 encoding (same as server)
+      createdAt: new Date().toISOString()
     })
     
-    if (loginResponse.ok) {
-      const data = await loginResponse.json()
-      sessionStorage.setItem('admin_session_token', data.sessionToken)
-    }
+    // Автоматический вход после установки пароля
+    const sessionToken = generateSessionToken()
+    sessionStorage.setItem('admin_session_token', sessionToken)
     
     return true
   } catch (error) {
@@ -45,21 +37,28 @@ export const initPassword = async (password) => {
 
 export const checkPassword = async (password) => {
   try {
-    const response = await fetch(`${API_BASE}/admin/login`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ password })
-    })
-    
-    if (!response.ok) {
+    if (!password) {
       return false
     }
     
-    const data = await response.json()
-    // Store session token in sessionStorage
-    sessionStorage.setItem('admin_session_token', data.sessionToken)
+    const adminDocRef = doc(db, ADMIN_CONFIG_COLLECTION, ADMIN_CONFIG_DOC)
+    const docSnap = await getDoc(adminDocRef)
+    
+    if (!docSnap.exists()) {
+      return false // Пароль не установлен
+    }
+    
+    const storedHash = docSnap.data().passwordHash
+    const inputHash = btoa(password)
+    
+    if (inputHash !== storedHash) {
+      return false // Неправильный пароль
+    }
+    
+    // Пароль верный - создаем сессию
+    const sessionToken = generateSessionToken()
+    sessionStorage.setItem('admin_session_token', sessionToken)
+    
     return true
   } catch (error) {
     console.error('Error checking password:', error)
@@ -69,10 +68,9 @@ export const checkPassword = async (password) => {
 
 export const hasPassword = async () => {
   try {
-    const response = await fetch(`${API_BASE}/admin/has-password`)
-    if (!response.ok) throw new Error('Failed to check password')
-    const data = await response.json()
-    return data.hasPassword
+    const adminDocRef = doc(db, ADMIN_CONFIG_COLLECTION, ADMIN_CONFIG_DOC)
+    const docSnap = await getDoc(adminDocRef)
+    return docSnap.exists()
   } catch (error) {
     console.error('Error checking if password exists:', error)
     return false
@@ -85,7 +83,7 @@ export const isAdminLoggedIn = () => {
 
 export const setAdminLoggedIn = (value) => {
   if (value) {
-    // Session token is set by login
+    // Ничего не делаем - сессия уже установлена при логине
     return
   } else {
     sessionStorage.removeItem('admin_session_token')
@@ -94,19 +92,17 @@ export const setAdminLoggedIn = (value) => {
 
 export const logoutAdmin = async () => {
   try {
-    const sessionToken = sessionStorage.getItem('admin_session_token')
-    if (sessionToken) {
-      await fetch(`${API_BASE}/admin/logout`, {
-        method: 'POST',
-        headers: {
-          'x-admin-session': sessionToken
-        }
-      })
-    }
+    sessionStorage.removeItem('admin_session_token')
   } catch (error) {
     console.error('Error logging out:', error)
-  } finally {
-    sessionStorage.removeItem('admin_session_token')
   }
 }
 
+export const getAdminSessionToken = () => {
+  return sessionStorage.getItem('admin_session_token')
+}
+
+// Helper
+const generateSessionToken = () => {
+  return Math.random().toString(36).substring(2, 15)
+}
