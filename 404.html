@@ -4,14 +4,13 @@
     <meta charset="utf-8">
     <title>Redirect</title>
     <script>
-      // Перенаправляем все 404 обратно на index.html
-      // GitHub Pages вызовет эту страницу при 404, 
-      // а мы перенаправим на index.html с сохранением пути для React Router
-      
+      // Сохраняем оригинальный URL и перенаправляем на index.html
+      // GitHub Pages отправит сюда при любом 404
       sessionStorage.redirect = location.href;
     </script>
-    <meta http-equiv="refresh" content="0;URL='/'"></meta>
+    <!-- Моментальный редирект на index.html, который обработает маршрут -->
+    <meta http-equiv="refresh" content="0;URL=/index.html">
   </head>
   <body>
   </body>
-</html> 
+</html>
