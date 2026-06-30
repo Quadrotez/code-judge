@@ -1,17 +1,18 @@
 <!DOCTYPE html>
 <html>
-  <head>
-    <meta charset="utf-8">
-    <title>Redirect</title>
-    <script>
-      // Перенаправляем все 404 обратно на index.html
-      // GitHub Pages вызовет эту страницу при 404, 
-      // а мы перенаправим на index.html с сохранением пути для React Router
-      
-      sessionStorage.redirect = location.href;
-    </script>
-    <meta http-equiv="refresh" content="0;URL='/code-judge/'"></meta>
-  </head>
-  <body>
-  </body>
-</html> 
+<head>
+  <meta charset="utf-8">
+  <title>Redirect</title>
+  <script>
+    // Сохраняем оригинальный URL для React Router
+    var pathname = window.location.pathname;
+    var search = window.location.search;
+    sessionStorage.redirect = pathname + search;
+    
+    // Редирект на index.html (явный редирект через JS)
+    window.location.href = '/index.html';
+  </script>
+</head>
+<body>
+</body>
+</html>
