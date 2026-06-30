@@ -10,11 +10,11 @@ import { auth } from './firebaseConfig'
 const ADMIN_EMAIL = 'admin@quadrotez.com'
 
 /**
- * Вход в админку по паролю (email фиксированный)
+ * Вход в систему (используется в App.jsx)
  */
-export const checkPassword = async (password) => {
+export const loginAdmin = async (email, password) => {
   try {
-    const userCredential = await signInWithEmailAndPassword(auth, ADMIN_EMAIL, password)
+    const userCredential = await signInWithEmailAndPassword(auth, email, password)
     return !!userCredential.user
   } catch (error) {
     // Подробный вывод ошибки в консоль браузера для отладки
@@ -22,7 +22,7 @@ export const checkPassword = async (password) => {
     
     // Пробрасываем человекочитаемую ошибку
     if (error.code === 'auth/user-not-found') {
-      throw new Error('Пользователь admin@quadrotez.com не найден в Firebase Auth')
+      throw new Error('Пользователь ' + email + ' не найден в Firebase Auth')
     } else if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
       throw new Error('Неверный пароль')
     } else if (error.code === 'auth/too-many-requests') {
@@ -31,6 +31,13 @@ export const checkPassword = async (password) => {
     
     throw error
   }
+}
+
+/**
+ * Вход в админку по паролю (совместимость со старым кодом)
+ */
+export const checkPassword = async (password) => {
+  return loginAdmin(ADMIN_EMAIL, password)
 }
 
 /**

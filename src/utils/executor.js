@@ -321,12 +321,13 @@ export const compareOutput = (actual, expected) => {
 }
 
 // Запустить тесты
-export const runTests = async (code, tests, timeLimit = 5000, language = 'python') => {
+export const runTests = async (code, tests, timeLimit = 5000, language = 'python', onStatusUpdate = null) => {
   if (language === 'cpp') {
     const results = []
     
     for (let i = 0; i < tests.length; i++) {
       const test = tests[i]
+      if (onStatusUpdate) onStatusUpdate(`Запуск теста ${i + 1}...`)
       
       try {
         const execution = await executeCpp(code, test.input, timeLimit)
@@ -338,21 +339,24 @@ export const runTests = async (code, tests, timeLimit = 5000, language = 'python
             passed,
             expected: test.output,
             actual: execution.output,
-            executionTime: execution.executionTime
+            executionTime: execution.executionTime,
+            isHidden: !!test.isHidden
           })
         } else {
           results.push({
             testId: test.id || `test_${i + 1}`,
             passed: false,
             error: execution.error,
-            executionTime: execution.executionTime
+            executionTime: execution.executionTime,
+            isHidden: !!test.isHidden
           })
         }
       } catch (error) {
         results.push({
           testId: test.id || `test_${i + 1}`,
           passed: false,
-          error: `⚠️ ${error.message}`
+          error: `⚠️ ${error.message}`,
+          isHidden: !!test.isHidden
         })
       }
     }
@@ -361,6 +365,7 @@ export const runTests = async (code, tests, timeLimit = 5000, language = 'python
   }
   
   try {
+    if (onStatusUpdate) onStatusUpdate('Загрузка интерпретатора Python...')
     await initPyodide()
   } catch (error) {
     return [{
@@ -374,6 +379,7 @@ export const runTests = async (code, tests, timeLimit = 5000, language = 'python
   
   for (let i = 0; i < tests.length; i++) {
     const test = tests[i]
+    if (onStatusUpdate) onStatusUpdate(`Запуск теста ${i + 1}...`)
     
     try {
       const execution = await executePython(code, test.input, timeLimit)
@@ -385,21 +391,24 @@ export const runTests = async (code, tests, timeLimit = 5000, language = 'python
           passed,
           expected: test.output,
           actual: execution.output,
-          executionTime: execution.executionTime
+          executionTime: execution.executionTime,
+          isHidden: !!test.isHidden
         })
       } else {
         results.push({
           testId: test.id || `test_${i + 1}`,
           passed: false,
           error: execution.error,
-          executionTime: execution.executionTime
+          executionTime: execution.executionTime,
+          isHidden: !!test.isHidden
         })
       }
     } catch (error) {
       results.push({
         testId: test.id || `test_${i + 1}`,
         passed: false,
-        error: `⚠️ ${error.message}`
+        error: `⚠️ ${error.message}`,
+        isHidden: !!test.isHidden
       })
     }
   }

@@ -12,6 +12,7 @@ import {
 import { db, auth } from './firebaseConfig'
 
 const PROBLEMS_COLLECTION = 'problems'
+const TAGS_COLLECTION = 'tags'
 
 export const getProblems = async () => {
   try {
@@ -55,14 +56,19 @@ export const saveProblem = async (problem) => {
       throw new Error('Unauthorized - admin session required')
     }
     
-    // Используем title как ID или генерируем новый
+    // Используем существующий ID или генерируем новый
     const problemId = problem.id || `problem_${Date.now()}`
     
-    const docRef = doc(db, PROBLEMS_COLLECTION, problemId)
-    await setDoc(docRef, {
+    // Создаем копию объекта и удаляем id из тела документа, если хотим чтобы он был только в имени документа
+    // Или оставляем, но следим чтобы он не был undefined
+    const dataToSave = {
       ...problem,
+      id: problemId,
       updatedAt: new Date().toISOString()
-    })
+    }
+    
+    const docRef = doc(db, PROBLEMS_COLLECTION, problemId)
+    await setDoc(docRef, dataToSave)
     
     return {
       id: problemId,
@@ -160,4 +166,47 @@ export const getSubmissions = (problemId) => {
   // Submissions are stored locally in browser
   const submissions = JSON.parse(localStorage.getItem('submissions') || '[]')
   return submissions.filter(s => s.problemId === problemId)
+}
+
+// --- TAGS ---
+export const getTags = async () => {
+  try {
+    const querySnapshot = await getDocs(collection(db, TAGS_COLLECTION))
+    const tags = []
+    querySnapshot.forEach((doc) => {
+      tags.push({
+        id: doc.id,
+        ...doc.data()
+      })
+    })
+    return tags
+  } catch (error) {
+    console.error('Error fetching tags:', error)
+    return []
+  }
+}
+
+export const saveTag = async (tag) => {
+  try {
+    if (!auth.currentUser) throw new Error('Unauthorized - admin session required')
+    const tagId = tag.id || `tag_${Date.now()}`
+    const docRef = doc(db, TAGS_COLLECTION, tagId)
+    await setDoc(docRef, tag)
+    return { id: tagId, ...tag }
+  } catch (error) {
+    console.error('Error saving tag:', error)
+    throw error
+  }
+}
+
+export const deleteTag = async (id) => {
+  try {
+    if (!auth.currentUser) throw new Error('Unauthorized - admin session required')
+    const docRef = doc(db, TAGS_COLLECTION, id)
+    await deleteDoc(docRef)
+    return { success: true }
+  } catch (error) {
+    console.error('Error deleting tag:', error)
+    throw error
+  }
 }
