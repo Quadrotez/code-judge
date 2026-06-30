@@ -1,16 +1,18 @@
 <!DOCTYPE html>
 <html>
-  <head>
-    <meta charset="utf-8">
-    <title>Redirect</title>
-    <script>
-      // Сохраняем оригинальный URL и перенаправляем на index.html
-      // GitHub Pages отправит сюда при любом 404
-      sessionStorage.redirect = location.href;
-    </script>
-    <!-- Моментальный редирект на index.html, который обработает маршрут -->
-    <meta http-equiv="refresh" content="0;URL=/index.html">
-  </head>
-  <body>
-  </body>
+<head>
+  <meta charset="utf-8">
+  <title>Redirect</title>
+  <script>
+    // Сохраняем оригинальный URL для React Router
+    var pathname = window.location.pathname;
+    var search = window.location.search;
+    sessionStorage.redirect = pathname + search;
+    
+    // Редирект на index.html (явный редирект через JS)
+    window.location.href = '/index.html';
+  </script>
+</head>
+<body>
+</body>
 </html>
