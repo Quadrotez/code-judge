@@ -16,6 +16,7 @@
     "crypto-js": "^4.1.1",
     "express": "^4.18.2",
     "firebase": "^12.15.0",
+    "highlight.js": "^11.9.0",
     "katex": "^0.16.9",
     "pyodide": "^0.23.0",
     "react": "^18.2.0",

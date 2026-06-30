@@ -16,7 +16,7 @@
 }
 
 .language-badge {
-  background: #007bff;
+  background: #22c55e;
   color: white;
   padding: 4px 8px;
   border-radius: 4px;
@@ -29,7 +29,37 @@
   overflow: hidden;
 }
 
+/* Highlight блок поверх textarea */
+.editor-highlight {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  margin: 0;
+  padding: 15px;
+  border: none;
+  font-family: 'Courier New', 'Monaco', monospace;
+  font-size: 14px;
+  line-height: 1.5;
+  background: transparent;
+  color: transparent;
+  white-space: pre;
+  word-wrap: break-word;
+  overflow: hidden;
+  tab-size: 2;
+  -moz-tab-size: 2;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.editor-highlight code {
+  background: transparent !important;
+  padding: 0 !important;
+  color: inherit !important;
+}
+
 .editor-textarea {
+  position: relative;
   width: 100%;
   min-height: 300px;
   padding: 15px;
@@ -42,6 +72,8 @@
   color: var(--text-primary);
   tab-size: 2;
   -moz-tab-size: 2;
+  z-index: 2;
+  position: relative;
 }
 
 .editor-textarea:focus {
@@ -56,6 +88,19 @@
 
 .editor-textarea::placeholder {
   color: var(--text-light);
+}
+
+/* Делаем textarea прозрачным чтобы показать подсвеченный код под ним */
+.editor-textarea {
+  background-color: transparent;
+  color: rgba(0, 0, 0, 0.9);
+  resize: vertical;
+  overflow-y: scroll;
+  caret-color: var(--text-primary);
+}
+
+[data-theme="dark"] .editor-textarea {
+  color: rgba(224, 224, 224, 0.9);
 }
 
 /* Autocomplete menu */
@@ -82,50 +127,59 @@
 
 .autocomplete-item:hover,
 .autocomplete-item.selected {
-  background: var(--primary);
+  background: #22c55e;
   color: white;
 }
 
-/* Syntax highlighting */
-.keyword {
-  color: #569cd6;
-  font-weight: bold;
+/* Highlight.js цветовая схема */
+.hljs {
+  background: transparent !important;
+  padding: 0 !important;
 }
 
-.builtin {
+.hljs-keyword {
+  color: #569cd6;
+}
+
+.hljs-title {
+  color: #4ec9b0;
+}
+
+.hljs-literal {
+  color: #569cd6;
+}
+
+.hljs-string {
+  color: #ce9178;
+}
+
+.hljs-number {
+  color: #b5cea8;
+}
+
+.hljs-attr {
   color: #9cdcfe;
 }
 
-.comment {
+.hljs-variable {
+  color: #9cdcfe;
+}
+
+.hljs-comment {
   color: #6a9955;
   font-style: italic;
 }
 
-.string {
-  color: #ce9178;
+.hljs-built_in {
+  color: #4ec9b0;
 }
 
-.number {
-  color: #b5cea8;
+.hljs-function {
+  color: #dcdcaa;
 }
 
-[data-theme="dark"] .keyword {
-  color: #569cd6;
+[data-theme="dark"] .hljs {
+  background: transparent !important;
 }
 
-[data-theme="dark"] .builtin {
-  color: #9cdcfe;
-}
-
-[data-theme="dark"] .comment {
-  color: #6a9955;
-}
-
-[data-theme="dark"] .string {
-  color: #ce9178;
-}
-
-[data-theme="dark"] .number {
-  color: #b5cea8;
-}
 

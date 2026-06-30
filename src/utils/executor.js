@@ -16,6 +16,9 @@ export const initPyodide = async () => {
       indexURL: 'https://cdn.jsdelivr.net/pyodide/v0.23.4/full/'
     })
     
+    // Выполняем пустой скрипт для разминки
+    pyodide.runPython('')
+    
     pyodideReady = true
     return pyodide
   } catch (error) {
@@ -107,24 +110,36 @@ export const executePython = async (code, testInput, timeLimit = 5000) => {
   
   if (worker) {
     return new Promise((resolve) => {
-      const timer = setTimeout(() => {
-        // Если timeout сработал, worker всё равно работает в фоне
-        // но мы возвращаем результат о timeout
-        resolve({
-          success: false,
-          output: '',
-          error: `⏱️ Превышен лимит времени (${timeLimit}ms)`,
-          executionTime: timeLimit
-        })
-      }, timeLimit + 1000) // Добавляем буфер в 1 сек
+      let actualTimeLimit = timeLimit
+      let messageHandler = null
+      let timer = null
+      let isInitializing = true
       
-      const messageHandler = (event) => {
-        clearTimeout(timer)
-        worker.removeEventListener('message', messageHandler)
+      messageHandler = (event) => {
+        const { type, output, executionTime, message, timeLimit: msgTimeLimit, actualTime, initTime } = event.data
         
-        const { type, output, executionTime, message, timeLimit: msgTimeLimit, actualTime } = event.data
+        // Если получили сообщение об инициализации
+        if (type === 'initialized') {
+          // После инициализации pyodide запускаем таймер с оригинальным timeLimit
+          timer = setTimeout(() => {
+            resolve({
+              success: false,
+              output: '',
+              error: `⏱️ Превышен лимит времени (${timeLimit}ms)`,
+              executionTime: timeLimit
+            })
+            worker.removeEventListener('message', messageHandler)
+          }, timeLimit + 500)
+          
+          isInitializing = false
+          // Теперь отправляем основной код для выполнения
+          worker.postMessage({ code, testInput, timeLimit })
+          return
+        }
         
         if (type === 'success') {
+          clearTimeout(timer)
+          worker.removeEventListener('message', messageHandler)
           resolve({
             success: true,
             output: output,
@@ -132,6 +147,8 @@ export const executePython = async (code, testInput, timeLimit = 5000) => {
             executionTime: executionTime
           })
         } else if (type === 'timeout') {
+          clearTimeout(timer)
+          worker.removeEventListener('message', messageHandler)
           resolve({
             success: false,
             output: '',
@@ -139,6 +156,8 @@ export const executePython = async (code, testInput, timeLimit = 5000) => {
             executionTime: actualTime
           })
         } else if (type === 'error') {
+          clearTimeout(timer)
+          worker.removeEventListener('message', messageHandler)
           resolve({
             success: false,
             output: '',
@@ -149,7 +168,8 @@ export const executePython = async (code, testInput, timeLimit = 5000) => {
       }
       
       worker.addEventListener('message', messageHandler)
-      worker.postMessage({ code, testInput, timeLimit })
+      // Первый запрос - инициализация pyodide
+      worker.postMessage({ code: '', testInput: '', timeLimit: 0 })
     })
   }
   
@@ -171,6 +191,7 @@ export const executePython = async (code, testInput, timeLimit = 5000) => {
     }, timeLimit + 500)
     
     try {
+      // ВАЖНО: Запускаем таймер ПОСЛЕ инициализации pyodide
       const startTime = performance.now()
       
       const inputLines = testInput === '' ? [] : testInput.split('\n')

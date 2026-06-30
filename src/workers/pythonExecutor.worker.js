@@ -3,18 +3,34 @@
 
 let pyodide = null
 let pyodideReady = false
+let initStartTime = null
 
 // Инициализация Pyodide
 async function initPyodide() {
   if (pyodideReady) return
   
   try {
+    initStartTime = performance.now()
+    
     // Загружаем Pyodide в worker
     importScripts('https://cdn.jsdelivr.net/pyodide/v0.23.4/full/pyodide.js')
     pyodide = await loadPyodide({
       indexURL: 'https://cdn.jsdelivr.net/pyodide/v0.23.4/full/'
     })
+    
+    // Выполняем пустой скрипт для разминки
+    pyodide.runPython('')
+    
     pyodideReady = true
+    
+    const initEndTime = performance.now()
+    const initTime = initEndTime - initStartTime
+    
+    self.postMessage({
+      type: 'initialized',
+      initTime: Math.round(initTime)
+    })
+    
   } catch (error) {
     self.postMessage({ 
       type: 'error',
@@ -37,6 +53,7 @@ self.onmessage = async (event) => {
   }
   
   try {
+    // ВАЖНО: Таймер запускается ПОСЛЕ инициализации pyodide
     const startTime = performance.now()
     
     const inputLines = testInput === '' ? [] : testInput.split('\n')

@@ -13,7 +13,7 @@ const ThemeContext = React.createContext()
 
 // ========== HOME PAGE ==========
 const HomePage = () => {
-  const [problems, setProblems] = useState([])
+  const [problems, setProblems] = useState(null)
   
   useEffect(() => {
     const loadProblems = async () => {
@@ -26,9 +26,13 @@ const HomePage = () => {
   return (
     <div className="container">
       <h1>📋 Задачи</h1>
-      {problems.length === 0 ? (
+      {problems === null ? (
         <div className="empty-state">
-          <p>Нет задач. Попроси админа добавить!</p>
+          <p>Загрузка...</p>
+        </div>
+      ) : problems.length === 0 ? (
+        <div className="empty-state">
+          <p>Нет задач</p>
         </div>
       ) : (
         <div className="problems-grid">
@@ -51,17 +55,20 @@ const HomePage = () => {
 const ProblemPage = () => {
   const { id } = useParams()
   const [problem, setProblem] = useState(null)
+  const [loading, setLoading] = useState(true)
   const [pythonCode, setPythonCode] = useState('')
   const [cppCode, setCppCode] = useState('')
   const [selectedLanguage, setSelectedLanguage] = useState('python')
   const [testResults, setTestResults] = useState(null)
-  const [loading, setLoading] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
   const [showSolution, setShowSolution] = useState(false)
   
   useEffect(() => {
     const loadProblem = async () => {
+      setLoading(true)
       const p = await getProblemById(id)
       setProblem(p)
+      setLoading(false)
     }
     loadProblem()
   }, [id])
@@ -69,7 +76,7 @@ const ProblemPage = () => {
   const handleSubmit = async () => {
     if (!problem) return
     
-    setLoading(true)
+    setSubmitting(true)
     const code = selectedLanguage === 'python' ? pythonCode : cppCode
     
     try {
@@ -96,11 +103,12 @@ const ProblemPage = () => {
         error: error.message
       }])
     } finally {
-      setLoading(false)
+      setSubmitting(false)
     }
   }
   
-  if (!problem) return <div className="container">Задача не найдена</div>
+  if (loading) return <div className="container"><div className="empty-state"><p>Загрузка задачи...</p></div></div>
+  if (!problem) return <div className="container"><div className="empty-state"><p>Нет задачи</p></div></div>
   
   return (
     <div className="container problem-container">
@@ -207,9 +215,9 @@ const ProblemPage = () => {
           <button
             className="submit-btn"
             onClick={handleSubmit}
-            disabled={loading}
+            disabled={submitting}
           >
-            {loading ? '⏳ Проверяю...' : '✅ Отправить'}
+            {submitting ? '⏳ Проверяю...' : '✅ Отправить'}
           </button>
           
           {testResults && (
@@ -695,7 +703,7 @@ export default function App() {
         <div className="app" data-theme={isDarkMode ? 'dark' : 'light'}>
           <nav className="navbar">
             <Link to="/" className="logo">
-              🏆 Олимпиадный судья
+              CodeJudge
             </Link>
             <div className="nav-links">
               <Link to="/">Задачи</Link>

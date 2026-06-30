@@ -6,17 +6,17 @@ import 'katex/dist/katex.min.css'
 /**
  * Компонент для рендеринга текста с LaTeX формулами
  * 
- * Использует формат Obsidian: текст между $$ - это LaTeX
- * Примеры:
- * - $$x = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}$$ - формула в отдельной строке (display mode)
- * - Уравнение: $$E = mc^2$$ здесь - инлайн формула (не реализовано, для инлайна используй $$...$$ в отдельной строке)
+ * Использует формат Obsidian: 
+ * - $$ ... $$ - формула в отдельной строке (display mode)
+ * - $ ... $ - формула на одном уровне с текстом (inline mode)
  */
 export const LaTeXRenderer = ({ text, className = '' }) => {
   const renderedContent = useMemo(() => {
     if (!text) return null
     
     const parts = []
-    const regex = /\$\$([\s\S]*?)\$\$/g
+    // Сначала ищем $$ (display mode) затем $ (inline mode)
+    const regex = /(\$\$[\s\S]*?\$\$)|(\$(?!\$)[\s\S]*?(?<!\$)\$)/g
     let lastIndex = 0
     let match
     
@@ -31,12 +31,18 @@ export const LaTeXRenderer = ({ text, className = '' }) => {
         })
       }
       
-      // Добавляем LaTeX формулу
-      const formula = match[1].trim()
+      // Определяем режим отображения
+      const fullMatch = match[0]
+      const isDisplay = fullMatch.startsWith('$$')
+      const formula = isDisplay 
+        ? fullMatch.slice(2, -2).trim()  // Удаляем $$ с обеих сторон
+        : fullMatch.slice(1, -1).trim()  // Удаляем $ с обеих сторон
+      
       parts.push({
         type: 'latex',
         content: formula,
-        key: `latex-${match.index}`
+        key: `latex-${match.index}`,
+        displayMode: isDisplay
       })
       
       lastIndex = regex.lastIndex
@@ -75,9 +81,11 @@ export const LaTeXRenderer = ({ text, className = '' }) => {
           )
         } else if (part.type === 'latex') {
           return (
-            <div key={part.key} className="latex-formula">
-              <LaTeXFormula formula={part.content} />
-            </div>
+            <LaTeXFormula 
+              key={part.key} 
+              formula={part.content} 
+              displayMode={part.displayMode}
+            />
           )
         }
       })}
@@ -88,7 +96,7 @@ export const LaTeXRenderer = ({ text, className = '' }) => {
 /**
  * Компонент для рендеринга одной LaTeX формулы
  */
-const LaTeXFormula = ({ formula }) => {
+const LaTeXFormula = ({ formula, displayMode = true }) => {
   const elementRef = React.useRef(null)
   
   React.useEffect(() => {
@@ -96,7 +104,7 @@ const LaTeXFormula = ({ formula }) => {
       try {
         const html = katex.renderToString(formula, {
           throwOnError: false,
-          displayMode: true
+          displayMode: displayMode
         })
         elementRef.current.innerHTML = html
       } catch (error) {
@@ -104,9 +112,11 @@ const LaTeXFormula = ({ formula }) => {
         elementRef.current.textContent = `[LaTeX Error: ${error.message}]`
       }
     }
-  }, [formula])
+  }, [formula, displayMode])
   
-  return <div ref={elementRef} className="katex-container" />
+  return displayMode 
+    ? <div ref={elementRef} className="katex-container" />
+    : <span ref={elementRef} className="katex-inline" />
 }
 
 export default LaTeXRenderer

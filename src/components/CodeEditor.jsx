@@ -1,39 +1,8 @@
 // components/CodeEditor.jsx
 import React, { useState, useRef, useEffect } from 'react'
+import hljs from 'highlight.js'
+import 'highlight.js/styles/atom-one-dark.css'
 import '../styles/CodeEditor.css'
-
-// Simple syntax highlighting for Python and C++
-const highlightCode = (code, language) => {
-  let highlighted = code
-  
-  if (language === 'Python') {
-    // Python keywords
-    const pythonKeywords = /\b(def|class|if|elif|else|for|while|return|import|from|try|except|finally|with|as|pass|break|continue|lambda|yield|global|nonlocal|assert|del|raise|print|input|len|range|str|int|float|list|dict|set|tuple)\b/g
-    const pythonBuiltins = /\b(True|False|None|self)\b/g
-    
-    highlighted = highlighted.replace(pythonKeywords, '<span class="keyword">$1</span>')
-    highlighted = highlighted.replace(pythonBuiltins, '<span class="builtin">$1</span>')
-  } else if (language === 'C++') {
-    // C++ keywords
-    const cppKeywords = /\b(int|float|double|string|void|bool|char|auto|const|static|return|if|else|for|while|do|switch|case|break|continue|class|struct|namespace|template|try|catch|throw|new|delete|nullptr|true|false)\b/g
-    
-    highlighted = highlighted.replace(cppKeywords, '<span class="keyword">$1</span>')
-  }
-  
-  // Comments
-  highlighted = highlighted.replace(/(#.*?$)/gm, '<span class="comment">$1</span>')
-  highlighted = highlighted.replace(/\/\/.*?$/gm, '<span class="comment">$&</span>')
-  highlighted = highlighted.replace(/\/\*[\s\S]*?\*\//g, '<span class="comment">$&</span>')
-  
-  // Strings
-  highlighted = highlighted.replace(/"[^"]*"/g, '<span class="string">$&</span>')
-  highlighted = highlighted.replace(/'[^']*'/g, '<span class="string">$&</span>')
-  
-  // Numbers
-  highlighted = highlighted.replace(/\b(\d+)\b/g, '<span class="number">$1</span>')
-  
-  return highlighted
-}
 
 // Autocomplete suggestions
 const getAutocompleteSuggestions = (word, language) => {
@@ -46,10 +15,32 @@ const getAutocompleteSuggestions = (word, language) => {
 
 export const CodeEditor = ({ language, onChange, value, readOnly = false }) => {
   const textareaRef = useRef(null)
+  const highlightedRef = useRef(null)
   const [showAutocomplete, setShowAutocomplete] = useState(false)
   const [suggestions, setSuggestions] = useState([])
   const [currentWord, setCurrentWord] = useState('')
   const [selectedSuggestion, setSelectedSuggestion] = useState(0)
+  
+  // Синхронизация прокрутки между textarea и highlight блоком
+  const handleScroll = (e) => {
+    if (highlightedRef.current) {
+      highlightedRef.current.scrollTop = e.target.scrollTop
+      highlightedRef.current.scrollLeft = e.target.scrollLeft
+    }
+  }
+  
+  // Обновление подсветки кода
+  useEffect(() => {
+    if (highlightedRef.current && value) {
+      const highlighted = hljs.highlight(value, {
+        language: language.toLowerCase(),
+        ignoreIllegals: true
+      }).value
+      highlightedRef.current.innerHTML = `<pre><code class="hljs language-${language.toLowerCase()}">${highlighted}</code></pre>`
+    } else if (highlightedRef.current) {
+      highlightedRef.current.innerHTML = ''
+    }
+  }, [value, language])
   
   const handleKeyDown = (e) => {
     // Tab support
@@ -137,14 +128,16 @@ export const CodeEditor = ({ language, onChange, value, readOnly = false }) => {
         <span className="language-badge">{language}</span>
       </div>
       <div className="editor-wrapper">
+        <pre className="editor-highlight" ref={highlightedRef}></pre>
         <textarea
           ref={textareaRef}
           className="editor-textarea"
           value={value}
           onChange={handleChange}
           onKeyDown={handleKeyDown}
+          onScroll={handleScroll}
           readOnly={readOnly}
-          placeholder={`// Напиши код на ${language}...`}
+          placeholder=""
           spellCheck="false"
         />
         {showAutocomplete && suggestions.length > 0 && (
