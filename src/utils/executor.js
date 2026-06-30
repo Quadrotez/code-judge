@@ -1,8 +1,9 @@
 // utils/executor.js
 let pyodideReady = false
 let pyodide = null
+let pythonWorker = null
 
-// Инициализация Pyodide
+// Инициализация Pyodide (для запуска в основном потоке, если Worker не поддерживается)
 export const initPyodide = async () => {
   if (pyodideReady) return pyodide
   
@@ -23,10 +24,24 @@ export const initPyodide = async () => {
   }
 }
 
+// Инициализация Web Worker для Python
+const initPythonWorker = () => {
+  if (pythonWorker) return pythonWorker
+  
+  try {
+    pythonWorker = new Worker(new URL('../workers/pythonExecutor.worker.js', import.meta.url))
+    console.log('✅ Python Web Worker инициализирован')
+    return pythonWorker
+  } catch (error) {
+    console.warn('⚠️ Web Worker не поддерживается, используем fallback в основном потоке', error)
+    return null
+  }
+}
+
 // Выполнить C++ код через Wandbox API
 export const executeCpp = async (code, testInput, timeLimit = 5000) => {
   try {
-    // Используем актуальную версию GCC (или clang), доступную на Wandbox
+    // Используем актуальную версию GCC, доступную на Wandbox
     const response = await fetch('https://wandbox.org/api/compile.json', {
       method: 'POST',
       headers: {
@@ -34,10 +49,10 @@ export const executeCpp = async (code, testInput, timeLimit = 5000) => {
       },
       body: JSON.stringify({
         code: code,
-        compiler: 'gcc-head', // Использует последнюю стабильную версию GCC
-        options: 'warning,gnu++1y', // Опции компиляции (например, C++14/C++17/C++20 в зависимости от нужд)
+        compiler: 'gcc-head',
+        options: 'warning,gnu++1y',
         stdin: testInput,
-        compiler_option_raw: '-O2' // Оптимизация для ускорения работы
+        compiler_option_raw: '-O2'
       })
     })
     
@@ -47,10 +62,7 @@ export const executeCpp = async (code, testInput, timeLimit = 5000) => {
     
     const result = await response.json()
     
-    // Проверка на статус ответа Wandbox (0 означает успешное завершение процесса)
-    // status: 0 (ОК), status: 1+ (Ошибка рантайма или компиляции)
     if (result.status !== 0) {
-      // Если есть compiler_error, значит код не скомпилировался
       if (result.compiler_error) {
         return {
           success: false,
@@ -60,7 +72,6 @@ export const executeCpp = async (code, testInput, timeLimit = 5000) => {
         }
       }
       
-      // Если есть program_error, значит ошибка произошла во время выполнения (Runtime Error)
       if (result.program_error) {
         return {
           success: false,
@@ -73,10 +84,9 @@ export const executeCpp = async (code, testInput, timeLimit = 5000) => {
     
     return {
       success: true,
-      // В Wandbox успешный вывод программы находится в слоте program_output
       output: result.program_output || '',
       error: null,
-      executionTime: 0 // Wandbox API не возвращает точное время выполнения в базовом JSON
+      executionTime: 0
     }
     
   } catch (error) {
@@ -90,8 +100,62 @@ export const executeCpp = async (code, testInput, timeLimit = 5000) => {
   }
 }
 
-// Выполнить Python код с заданным вводом
+// Выполнить Python код с Web Worker (с правильным timeout)
 export const executePython = async (code, testInput, timeLimit = 5000) => {
+  // Сначала пробуем использовать Web Worker
+  const worker = initPythonWorker()
+  
+  if (worker) {
+    return new Promise((resolve) => {
+      const timer = setTimeout(() => {
+        // Если timeout сработал, worker всё равно работает в фоне
+        // но мы возвращаем результат о timeout
+        resolve({
+          success: false,
+          output: '',
+          error: `⏱️ Превышен лимит времени (${timeLimit}ms)`,
+          executionTime: timeLimit
+        })
+      }, timeLimit + 1000) // Добавляем буфер в 1 сек
+      
+      const messageHandler = (event) => {
+        clearTimeout(timer)
+        worker.removeEventListener('message', messageHandler)
+        
+        const { type, output, executionTime, message, timeLimit: msgTimeLimit, actualTime } = event.data
+        
+        if (type === 'success') {
+          resolve({
+            success: true,
+            output: output,
+            error: null,
+            executionTime: executionTime
+          })
+        } else if (type === 'timeout') {
+          resolve({
+            success: false,
+            output: '',
+            error: `⏱️ Превышен лимит времени (${msgTimeLimit}ms, выполнялось ${actualTime}ms)`,
+            executionTime: actualTime
+          })
+        } else if (type === 'error') {
+          resolve({
+            success: false,
+            output: '',
+            error: `❌ ${message}`,
+            executionTime: 0
+          })
+        }
+      }
+      
+      worker.addEventListener('message', messageHandler)
+      worker.postMessage({ code, testInput, timeLimit })
+    })
+  }
+  
+  // Fallback: выполнить в основном потоке (старый метод)
+  console.warn('⚠️ Используется fallback выполнение Python в основном потоке')
+  
   if (!pyodideReady) {
     await initPyodide()
   }

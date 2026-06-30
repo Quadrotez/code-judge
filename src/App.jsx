@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react'
 import { BrowserRouter as Router, Routes, Route, Link, useNavigate, useParams } from 'react-router-dom'
 import { CodeEditor } from './components/CodeEditor'
+import { LaTeXRenderer } from './components/LaTeXRenderer'
 import { getProblems, getProblemById, saveProblem, deleteProblem, exportProblems, importProblems, saveSubmission } from './utils/storage'
 import { initPassword, checkPassword, hasPassword, isAdminLoggedIn, setAdminLoggedIn, logoutAdmin } from './utils/auth'
 import { executePython, runTests } from './utils/executor'
@@ -109,17 +110,23 @@ const ProblemPage = () => {
         <div className="problem-statement">
           <section className="problem-section">
             <h3>📝 Условие</h3>
-            <p>{problem.description}</p>
+            <div className="problem-description-content">
+              <LaTeXRenderer text={problem.description} />
+            </div>
           </section>
           
           <section className="problem-section">
             <h3>📥 Формат ввода</h3>
-            <p>{problem.inputFormat}</p>
+            <div className="format-description">
+              <LaTeXRenderer text={problem.inputFormat} />
+            </div>
           </section>
           
           <section className="problem-section">
             <h3>📤 Формат вывода</h3>
-            <p>{problem.outputFormat}</p>
+            <div className="format-description">
+              <LaTeXRenderer text={problem.outputFormat} />
+            </div>
           </section>
           
           {problem.examples && problem.examples.length > 0 && (
@@ -137,7 +144,8 @@ const ProblemPage = () => {
                   </div>
                   {example.explanation && (
                     <div className="example-explanation">
-                      <strong>Пояснение:</strong> {example.explanation}
+                      <strong>Пояснение:</strong> 
+                      <LaTeXRenderer text={example.explanation} />
                     </div>
                   )}
                 </div>
