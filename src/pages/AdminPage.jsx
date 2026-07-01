@@ -279,7 +279,7 @@ function AdminPage() {
               <div className="form-grid">
                 <textarea
                   value={formData.solutions?.[selectedSolutionLanguage] || ''}
-                  onChange={code => setFormData({ ...formData, solutions: { ...formData.solutions, [selectedSolutionLanguage]: code } })}
+                  onChange={e => setFormData({ ...formData, solutions: { ...formData.solutions, [selectedSolutionLanguage]: e.target.value } })}
                   className="form-input"
                   rows={12}
                   placeholder=""
