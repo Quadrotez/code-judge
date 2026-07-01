@@ -39,7 +39,7 @@ function AdminPage() {
   const [editingTestId, setEditingTestId] = useState(null)
   const [newPassword, setNewPassword] = useState('')
   const [selectedSolutionLanguage, setSelectedSolutionLanguage] = useState('python')
-  const availableSolutionLanguages = ['python', 'cpp', 'markdown', 'latex']
+  const availableSolutionLanguages = ['python', 'cpp']
 
   useEffect(() => {
     if (isLoggedIn) {
@@ -245,7 +245,7 @@ function AdminPage() {
           </div>
 
           <div className="form-group">
-            <label>Описание (Markdown)</label>
+            <label>Описание (Markdown + LaTeX)</label>
             <div className="form-grid">
               <textarea 
                 value={formData.description} 
@@ -261,7 +261,7 @@ function AdminPage() {
           </div>
 
           <div className="form-group">
-            <label>Решения (опционально)</label>
+            <label>Решения (опционально, Markdown + LaTeX)</label>
             <div style={{ marginBottom: '1rem' }}>
               <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
                 {availableSolutionLanguages.map(lang => (
@@ -276,21 +276,19 @@ function AdminPage() {
                   </button>
                 ))}
               </div>
-              {selectedSolutionLanguage === 'markdown' || selectedSolutionLanguage === 'latex' ? (
+              <div className="form-grid">
                 <textarea
                   value={formData.solutions?.[selectedSolutionLanguage] || ''}
                   onChange={code => setFormData({ ...formData, solutions: { ...formData.solutions, [selectedSolutionLanguage]: code } })}
                   className="form-input"
                   rows={12}
-                  placeholder={`Введите решение на ${selectedSolutionLanguage.toUpperCase()}...`}
+                  placeholder={`Введите решение на Markdown + LaTeX для ${selectedSolutionLanguage.toUpperCase()}...`}
                 />
-              ) : (
-                <CodeEditor
-                  value={formData.solutions?.[selectedSolutionLanguage] || ''}
-                  onChange={code => setFormData({ ...formData, solutions: { ...formData.solutions, [selectedSolutionLanguage]: code } })}
-                  language={selectedSolutionLanguage}
-                />
-              )}
+                <div className="preview-box">
+                  <label className="preview-label">Предпросмотр</label>
+                  <MarkdownRenderer text={formData.solutions?.[selectedSolutionLanguage] || ''} />
+                </div>
+              </div>
             </div>
           </div>
 

@@ -134,17 +134,7 @@ function ProblemPage() {
                 </div>
               )}
               {selectedSolutionLang && (
-                <>
-                  {(selectedSolutionLang === 'markdown' || selectedSolutionLang === 'latex') ? (
-                    <MarkdownRenderer text={problem.solutions[selectedSolutionLang]} />
-                  ) : (
-                    <CodeEditor 
-                      value={problem.solutions[selectedSolutionLang]} 
-                      readOnly={true} 
-                      language={selectedSolutionLang} 
-                    />
-                  )}
-                </>
+                <MarkdownRenderer text={problem.solutions[selectedSolutionLang]} />
               )}
             </div>
           )}
