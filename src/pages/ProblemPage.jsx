@@ -14,12 +14,19 @@ function ProblemPage() {
   const [isRunning, setIsRunning] = useState(false)
   const [status, setStatus] = useState('')
   const [activeTab, setActiveTab] = useState('description')
+  const [selectedSolutionLang, setSelectedSolutionLang] = useState(null)
 
   useEffect(() => {
     getProblems().then(list => {
       const found = list.find(p => p.id === id)
       setProblem(found)
-      if (found) setCode(found.initialCode || '')
+      if (found) {
+        setCode(found.initialCode || '')
+        // Set first available solution language
+        if (found.solutions && Object.keys(found.solutions).length > 0) {
+          setSelectedSolutionLang(Object.keys(found.solutions)[0])
+        }
+      }
     })
   }, [id])
 
@@ -46,6 +53,9 @@ function ProblemPage() {
 
   if (!problem) return <div className="container">Загрузка...</div>
 
+  const hasSolutions = problem.solutions && Object.keys(problem.solutions).length > 0
+  const solutionLanguages = hasSolutions ? Object.keys(problem.solutions) : []
+
   return (
     <div className="container problem-page">
       <div className="problem-info">
@@ -62,7 +72,7 @@ function ProblemPage() {
           >
             Описание
           </button>
-          {problem.solution && (
+          {hasSolutions && (
             <button 
               className={`tab ${activeTab === 'solution' ? 'active' : ''}`} 
               onClick={() => setActiveTab('solution')}
@@ -102,7 +112,40 @@ function ProblemPage() {
             </>
           ) : (
             <div className="problem-solution">
-              <CodeEditor value={problem.solution} readOnly={true} language="python" />
+              {solutionLanguages.length > 1 && (
+                <div style={{ marginBottom: '1rem', display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                  {solutionLanguages.map(lang => (
+                    <button
+                      key={lang}
+                      onClick={() => setSelectedSolutionLang(lang)}
+                      style={{
+                        padding: '0.5rem 1rem',
+                        borderRadius: '4px',
+                        border: selectedSolutionLang === lang ? '2px solid var(--primary)' : '1px solid var(--border)',
+                        background: selectedSolutionLang === lang ? 'var(--primary)' : 'var(--bg-secondary)',
+                        color: selectedSolutionLang === lang ? 'white' : 'var(--text)',
+                        cursor: 'pointer',
+                        fontWeight: selectedSolutionLang === lang ? 'bold' : 'normal'
+                      }}
+                    >
+                      {lang.charAt(0).toUpperCase() + lang.slice(1)}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {selectedSolutionLang && (
+                <>
+                  {(selectedSolutionLang === 'markdown' || selectedSolutionLang === 'latex') ? (
+                    <MarkdownRenderer text={problem.solutions[selectedSolutionLang]} />
+                  ) : (
+                    <CodeEditor 
+                      value={problem.solutions[selectedSolutionLang]} 
+                      readOnly={true} 
+                      language={selectedSolutionLang} 
+                    />
+                  )}
+                </>
+              )}
             </div>
           )}
         </div>

@@ -28,7 +28,7 @@ function AdminPage() {
     title: '',
     description: '',
     initialCode: '',
-    solution: '',
+    solutions: {},
     tags: [],
     tests: []
   })
@@ -38,6 +38,8 @@ function AdminPage() {
   const [isNewTestHidden, setIsNewTestHidden] = useState(false)
   const [editingTestId, setEditingTestId] = useState(null)
   const [newPassword, setNewPassword] = useState('')
+  const [selectedSolutionLanguage, setSelectedSolutionLanguage] = useState('python')
+  const availableSolutionLanguages = ['python', 'cpp', 'markdown', 'latex']
 
   useEffect(() => {
     if (isLoggedIn) {
@@ -66,6 +68,15 @@ function AdminPage() {
       if (editingId) {
         problemToSave.id = editingId;
       }
+      
+      // Filter out empty solutions
+      const filteredSolutions = {};
+      for (const [lang, code] of Object.entries(problemToSave.solutions || {})) {
+        if (code && code.trim()) {
+          filteredSolutions[lang] = code;
+        }
+      }
+      problemToSave.solutions = filteredSolutions;
       
       await saveProblem(problemToSave)
       await loadData()
@@ -178,7 +189,7 @@ function AdminPage() {
             <button className="btn btn-secondary" onClick={() => setShowPasswordModal(true)}>
               <Icon name="pencil" size={16} /> Сменить пароль
             </button>
-            <button className="btn btn-primary" onClick={() => { setEditingId(null); setFormData({ title: '', description: '', initialCode: '', tags: [], tests: [] }); setShowForm(true); }}>
+            <button className="btn btn-primary" onClick={() => { setEditingId(null); setFormData({ title: '', description: '', initialCode: '', solutions: {}, tags: [], tests: [] }); setShowForm(true); }}>
               <Icon name="plus" size={16} /> Новая задача
             </button>
           </div>
@@ -250,8 +261,37 @@ function AdminPage() {
           </div>
 
           <div className="form-group">
-            <label>Решение (опционально)</label>
-            <CodeEditor value={formData.solution} onChange={code => setFormData({ ...formData, solution: code })} language="python" />
+            <label>Решения (опционально)</label>
+            <div style={{ marginBottom: '1rem' }}>
+              <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
+                {availableSolutionLanguages.map(lang => (
+                  <button
+                    key={lang}
+                    className={`tag-chip ${selectedSolutionLanguage === lang ? 'active' : ''}`}
+                    onClick={() => setSelectedSolutionLanguage(lang)}
+                    style={{ cursor: 'pointer' }}
+                  >
+                    {lang.charAt(0).toUpperCase() + lang.slice(1)}
+                    {formData.solutions?.[lang] && ' ✓'}
+                  </button>
+                ))}
+              </div>
+              {selectedSolutionLanguage === 'markdown' || selectedSolutionLanguage === 'latex' ? (
+                <textarea
+                  value={formData.solutions?.[selectedSolutionLanguage] || ''}
+                  onChange={code => setFormData({ ...formData, solutions: { ...formData.solutions, [selectedSolutionLanguage]: code } })}
+                  className="form-input"
+                  rows={12}
+                  placeholder={`Введите решение на ${selectedSolutionLanguage.toUpperCase()}...`}
+                />
+              ) : (
+                <CodeEditor
+                  value={formData.solutions?.[selectedSolutionLanguage] || ''}
+                  onChange={code => setFormData({ ...formData, solutions: { ...formData.solutions, [selectedSolutionLanguage]: code } })}
+                  language={selectedSolutionLanguage}
+                />
+              )}
+            </div>
           </div>
 
           <div className="form-group">
@@ -311,7 +351,7 @@ function AdminPage() {
               </div>
             </div>
             <div className="p-actions">
-              <button onClick={() => { setEditingId(p.id); setFormData(p); setShowForm(true); }} className="btn-icon"><Icon name="pencil" /></button>
+              <button onClick={() => { setEditingId(p.id); setFormData({ ...p, tags: p.tags || [], solutions: p.solutions || {} }); setShowForm(true); }} className="btn-icon"><Icon name="pencil" /></button>
               <button onClick={() => handleDeleteProblem(p.id)} className="btn-icon text-red"><Icon name="trash" /></button>
             </div>
           </div>
