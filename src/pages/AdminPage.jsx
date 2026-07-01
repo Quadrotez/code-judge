@@ -282,7 +282,7 @@ function AdminPage() {
                   onChange={code => setFormData({ ...formData, solutions: { ...formData.solutions, [selectedSolutionLanguage]: code } })}
                   className="form-input"
                   rows={12}
-                  placeholder={`Введите решение на Markdown + LaTeX для ${selectedSolutionLanguage.toUpperCase()}...`}
+                  placeholder=""
                 />
                 <div className="preview-box">
                   <label className="preview-label">Предпросмотр</label>

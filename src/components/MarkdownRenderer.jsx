@@ -9,7 +9,9 @@ import 'highlight.js/styles/atom-one-dark.css'
 export const MarkdownRenderer = ({ text = '' }) => {
   // Настройка marked для поддержки LaTeX и подсветки синтаксиса
   const renderContent = (content) => {
-    if (!content) return ''
+    // Ensure content is a string
+    const safeContent = String(content || '');
+    if (!safeContent) return ''
 
     // Настройка marked для подсветки синтаксиса
     marked.setOptions({
@@ -26,7 +28,7 @@ export const MarkdownRenderer = ({ text = '' }) => {
     })
 
     // 1. Обработка блочного LaTeX $$...$$
-    let processed = content.replace(/\$\$(.*?)\$\$/gs, (match, formula) => {
+    let processed = safeContent.replace(/\$\$(.*?)\$\$/gs, (match, formula) => {
       try {
         return Katex.renderToString(formula, { displayMode: true, throwOnError: false })
       } catch (e) {
