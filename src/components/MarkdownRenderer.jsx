@@ -4,7 +4,6 @@ import { marked } from 'marked'
 import Katex from 'katex'
 import hljs from 'highlight.js'
 import 'katex/dist/katex.min.css'
-import 'highlight.js/styles/atom-one-dark.css'
 
 export const MarkdownRenderer = ({ text = '' }) => {
   // Настройка marked для поддержки LaTeX и подсветки синтаксиса
@@ -15,14 +14,23 @@ export const MarkdownRenderer = ({ text = '' }) => {
 
     // Настройка marked для подсветки синтаксиса
     marked.setOptions({
+      async: false,
+      breaks: true,
       highlight: (code, lang) => {
-        if (lang && hljs.getLanguage(lang)) {
+        // Нормализуем название языка
+        let normalizedLang = lang ? lang.toLowerCase().trim() : null
+        if (normalizedLang === 'py') normalizedLang = 'python'
+        if (normalizedLang === 'c++' || normalizedLang === 'cpp') normalizedLang = 'cpp'
+        if (normalizedLang === 'js' || normalizedLang === 'javascript') normalizedLang = 'javascript'
+        
+        if (normalizedLang && hljs.getLanguage(normalizedLang)) {
           try {
-            return hljs.highlight(code, { language: lang, ignoreIllegals: true }).value
+            return hljs.highlight(code, { language: normalizedLang, ignoreIllegals: true }).value
           } catch (e) {
             return code
           }
         }
+        // Если язык не указан или не поддерживается, возвращаем код как есть
         return code
       }
     })
