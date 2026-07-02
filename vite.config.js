@@ -7,6 +7,12 @@ export default defineConfig({
 
   server: {
     port: 5173,
+    host: '0.0.0.0',
+    allowedHosts: [
+      'all',
+      '.manus.computer',
+      'localhost',
+    ],
 
     proxy: {
       '/api': {

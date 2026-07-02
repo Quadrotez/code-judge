@@ -21,10 +21,11 @@ const Navbar = ({ isDarkMode, setIsDarkMode }) => {
       </Link>
       <div className="nav-links">
         <Link to="/">Задачи</Link>
+        <Link to="/education">Учебник</Link>
         {isLogged && <Link to="/admin">Админ</Link>}
-        <button 
-          className="theme-toggle" 
-          onClick={() => setIsDarkMode(!isDarkMode)} 
+        <button
+          className="theme-toggle"
+          onClick={() => setIsDarkMode(!isDarkMode)}
           title={isDarkMode ? 'Переключить на светлую тему' : 'Переключить на темную тему'}
         >
           <Icon name={isDarkMode ? 'sun' : 'moon'} />

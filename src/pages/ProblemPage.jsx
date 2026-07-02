@@ -17,12 +17,11 @@ function ProblemPage() {
   const [selectedSolutionLang, setSelectedSolutionLang] = useState(null)
 
   useEffect(() => {
-    getProblems().then(list => {
-      const found = list.find(p => p.id === id)
+    getProblems().then((list) => {
+      const found = list.find((p) => p.id === id)
       setProblem(found)
       if (found) {
         setCode(found.initialCode || '')
-        // Set first available solution language
         if (found.solutions && Object.keys(found.solutions).length > 0) {
           setSelectedSolutionLang(Object.keys(found.solutions)[0])
         }
@@ -36,14 +35,8 @@ function ProblemPage() {
     setStatus('Подготовка...')
     try {
       const res = await runTests(code, problem.tests, 5000, lang, (msg) => setStatus(msg))
-      
-      // Calculate passed count
-      const passedCount = res.filter(r => r.passed).length
-      setResults({
-        total: res.length,
-        passed: passedCount,
-        details: res
-      })
+      const passedCount = res.filter((r) => r.passed).length
+      setResults({ total: res.length, passed: passedCount, details: res })
     } catch (e) {
       alert('Ошибка выполнения: ' + e.message)
     }
@@ -55,29 +48,35 @@ function ProblemPage() {
 
   const hasSolutions = problem.solutions && Object.keys(problem.solutions).length > 0
   const solutionLanguages = hasSolutions ? Object.keys(problem.solutions) : []
+  const hasInputFormat = problem.inputFormat && problem.inputFormat.trim()
+  const hasOutputFormat = problem.outputFormat && problem.outputFormat.trim()
+
+  const tabStyle = (tabName) => ({
+    background: 'none',
+    border: 'none',
+    padding: '0.5rem 1rem',
+    cursor: 'pointer',
+    borderBottom: activeTab === tabName ? '2px solid var(--primary)' : '2px solid transparent',
+    color: activeTab === tabName ? 'var(--primary)' : 'var(--text-secondary)',
+    fontWeight: 'bold',
+  })
 
   return (
     <div className="container problem-page">
       <div className="problem-info">
         <h1>{problem.title}</h1>
         <div className="p-tags">
-          {problem.tags?.map(t => <span key={t} className="mini-tag" style={{marginRight: '5px'}}>{t}</span>)}
+          {problem.tags?.map((t) => (
+            <span key={t} className="mini-tag" style={{ marginRight: '5px' }}>{t}</span>
+          ))}
         </div>
-        
+
         <div className="problem-tabs" style={{ marginTop: '1.5rem', borderBottom: '1px solid var(--border)', display: 'flex', gap: '1rem' }}>
-          <button 
-            className={`tab ${activeTab === 'description' ? 'active' : ''}`} 
-            onClick={() => setActiveTab('description')}
-            style={{ background: 'none', border: 'none', padding: '0.5rem 1rem', cursor: 'pointer', borderBottom: activeTab === 'description' ? '2px solid var(--primary)' : '2px solid transparent', color: activeTab === 'description' ? 'var(--primary)' : 'var(--text-secondary)', fontWeight: 'bold' }}
-          >
+          <button style={tabStyle('description')} onClick={() => setActiveTab('description')}>
             Описание
           </button>
           {hasSolutions && (
-            <button 
-              className={`tab ${activeTab === 'solution' ? 'active' : ''}`} 
-              onClick={() => setActiveTab('solution')}
-              style={{ background: 'none', border: 'none', padding: '0.5rem 1rem', cursor: 'pointer', borderBottom: activeTab === 'solution' ? '2px solid var(--primary)' : '2px solid transparent', color: activeTab === 'solution' ? 'var(--primary)' : 'var(--text-secondary)', fontWeight: 'bold' }}
-            >
+            <button style={tabStyle('solution')} onClick={() => setActiveTab('solution')}>
               Решение
             </button>
           )}
@@ -90,19 +89,37 @@ function ProblemPage() {
                 <MarkdownRenderer text={problem.description} />
               </div>
 
-              {problem.tests && problem.tests.some(t => !t.isHidden) && (
+              {hasInputFormat && (
+                <div className="problem-format-section" style={{ marginTop: '1.5rem' }}>
+                  <h2>Формат ввода</h2>
+                  <MarkdownRenderer text={problem.inputFormat} />
+                </div>
+              )}
+
+              {hasOutputFormat && (
+                <div className="problem-format-section" style={{ marginTop: '1.5rem' }}>
+                  <h2>Формат вывода</h2>
+                  <MarkdownRenderer text={problem.outputFormat} />
+                </div>
+              )}
+
+              {problem.tests && problem.tests.some((t) => !t.isHidden) && (
                 <div className="problem-examples" style={{ marginTop: '2rem' }}>
                   <h2>Примеры тестов</h2>
-                  {problem.tests.filter(t => !t.isHidden).map((test, index) => (
+                  {problem.tests.filter((t) => !t.isHidden).map((test, index) => (
                     <div key={test.id || index} className="example-item" style={{ marginBottom: '1rem' }}>
                       <div className="example-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                         <div className="example-box">
                           <label style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Ввод:</label>
-                          <pre style={{ background: 'var(--bg-secondary)', padding: '0.5rem', borderRadius: '4px', margin: '0.2rem 0' }}>{test.input}</pre>
+                          <pre style={{ background: 'var(--bg-secondary)', padding: '0.5rem', borderRadius: '4px', margin: '0.2rem 0' }}>
+                            {test.input}
+                          </pre>
                         </div>
                         <div className="example-box">
                           <label style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Вывод:</label>
-                          <pre style={{ background: 'var(--bg-secondary)', padding: '0.5rem', borderRadius: '4px', margin: '0.2rem 0' }}>{test.output}</pre>
+                          <pre style={{ background: 'var(--bg-secondary)', padding: '0.5rem', borderRadius: '4px', margin: '0.2rem 0' }}>
+                            {test.output}
+                          </pre>
                         </div>
                       </div>
                     </div>
@@ -114,21 +131,21 @@ function ProblemPage() {
             <div className="problem-solution">
               {solutionLanguages.length > 1 && (
                 <div style={{ marginBottom: '1rem', display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                  {solutionLanguages.map(lang => (
+                  {solutionLanguages.map((l) => (
                     <button
-                      key={lang}
-                      onClick={() => setSelectedSolutionLang(lang)}
+                      key={l}
+                      onClick={() => setSelectedSolutionLang(l)}
                       style={{
                         padding: '0.5rem 1rem',
                         borderRadius: '4px',
-                        border: selectedSolutionLang === lang ? '2px solid var(--primary)' : '1px solid var(--border)',
-                        background: selectedSolutionLang === lang ? 'var(--primary)' : 'var(--bg-secondary)',
-                        color: selectedSolutionLang === lang ? 'white' : 'var(--text)',
+                        border: selectedSolutionLang === l ? '2px solid var(--primary)' : '1px solid var(--border)',
+                        background: selectedSolutionLang === l ? 'var(--primary)' : 'var(--bg-secondary)',
+                        color: selectedSolutionLang === l ? 'white' : 'var(--text)',
                         cursor: 'pointer',
-                        fontWeight: selectedSolutionLang === lang ? 'bold' : 'normal'
+                        fontWeight: selectedSolutionLang === l ? 'bold' : 'normal',
                       }}
                     >
-                      {lang.charAt(0).toUpperCase() + lang.slice(1)}
+                      {l.charAt(0).toUpperCase() + l.slice(1)}
                     </button>
                   ))}
                 </div>
@@ -143,7 +160,7 @@ function ProblemPage() {
 
       <div className="editor-section">
         <div className="editor-header">
-          <select value={lang} onChange={e => setLang(e.target.value)} className="lang-select">
+          <select value={lang} onChange={(e) => setLang(e.target.value)} className="lang-select">
             <option value="python">Python 3</option>
             <option value="cpp">C++ (GCC)</option>
           </select>
@@ -152,7 +169,7 @@ function ProblemPage() {
           </button>
         </div>
         <CodeEditor value={code} onChange={setCode} language={lang} />
-        
+
         {results && (
           <div className="results-section">
             <h3>Результаты:</h3>
