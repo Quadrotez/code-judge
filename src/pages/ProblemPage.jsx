@@ -15,6 +15,8 @@ function ProblemPage() {
   const [status, setStatus] = useState('')
   const [activeTab, setActiveTab] = useState('description')
   const [selectedSolutionLang, setSelectedSolutionLang] = useState(null)
+  const [selectedTestOption, setSelectedTestOption] = useState(null)
+  const [testResult, setTestResult] = useState(null)
 
   useEffect(() => {
     getProblems().then((list) => {
@@ -42,6 +44,20 @@ function ProblemPage() {
     }
     setIsRunning(false)
     setStatus('')
+  }
+
+  const handleTestSubmit = () => {
+    if (selectedTestOption === null) {
+      alert('Выберите вариант ответа')
+      return
+    }
+    const selected = problem.options[selectedTestOption]
+    const isCorrect = selected.isCorrect
+    setTestResult({
+      isCorrect,
+      selectedId: selected.id,
+      correctId: problem.options.find((o) => o.isCorrect)?.id,
+    })
   }
 
   if (!problem) return <div className="container">Загрузка...</div>
@@ -73,9 +89,9 @@ function ProblemPage() {
 
         <div className="problem-tabs" style={{ marginTop: '1.5rem', borderBottom: '1px solid var(--border)', display: 'flex', gap: '1rem' }}>
           <button style={tabStyle('description')} onClick={() => setActiveTab('description')}>
-            Описание
+            {problem.type === 'test' ? 'Условие' : 'Описание'}
           </button>
-          {hasSolutions && (
+          {problem.type !== 'test' && hasSolutions && (
             <button style={tabStyle('solution')} onClick={() => setActiveTab('solution')}>
               Решение
             </button>
@@ -89,42 +105,46 @@ function ProblemPage() {
                 <MarkdownRenderer text={problem.description} />
               </div>
 
-              {hasInputFormat && (
-                <div className="problem-format-section" style={{ marginTop: '1.5rem' }}>
-                  <h2>Формат ввода</h2>
-                  <MarkdownRenderer text={problem.inputFormat} />
-                </div>
-              )}
-
-              {hasOutputFormat && (
-                <div className="problem-format-section" style={{ marginTop: '1.5rem' }}>
-                  <h2>Формат вывода</h2>
-                  <MarkdownRenderer text={problem.outputFormat} />
-                </div>
-              )}
-
-              {problem.tests && problem.tests.some((t) => !t.isHidden) && (
-                <div className="problem-examples" style={{ marginTop: '2rem' }}>
-                  <h2>Примеры тестов</h2>
-                  {problem.tests.filter((t) => !t.isHidden).map((test, index) => (
-                    <div key={test.id || index} className="example-item" style={{ marginBottom: '1rem' }}>
-                      <div className="example-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                        <div className="example-box">
-                          <label style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Ввод:</label>
-                          <pre style={{ background: 'var(--bg-secondary)', padding: '0.5rem', borderRadius: '4px', margin: '0.2rem 0' }}>
-                            {test.input}
-                          </pre>
-                        </div>
-                        <div className="example-box">
-                          <label style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Вывод:</label>
-                          <pre style={{ background: 'var(--bg-secondary)', padding: '0.5rem', borderRadius: '4px', margin: '0.2rem 0' }}>
-                            {test.output}
-                          </pre>
-                        </div>
-                      </div>
+              {problem.type !== 'test' && (
+                <>
+                  {hasInputFormat && (
+                    <div className="problem-format-section" style={{ marginTop: '1.5rem' }}>
+                      <h2>Формат ввода</h2>
+                      <MarkdownRenderer text={problem.inputFormat} />
                     </div>
-                  ))}
-                </div>
+                  )}
+
+                  {hasOutputFormat && (
+                    <div className="problem-format-section" style={{ marginTop: '1.5rem' }}>
+                      <h2>Формат вывода</h2>
+                      <MarkdownRenderer text={problem.outputFormat} />
+                    </div>
+                  )}
+
+                  {problem.tests && problem.tests.some((t) => !t.isHidden) && (
+                    <div className="problem-examples" style={{ marginTop: '2rem' }}>
+                      <h2>Примеры тестов</h2>
+                      {problem.tests.filter((t) => !t.isHidden).map((test, index) => (
+                        <div key={test.id || index} className="example-item" style={{ marginBottom: '1rem' }}>
+                          <div className="example-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                            <div className="example-box">
+                              <label style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Ввод:</label>
+                              <pre style={{ background: 'var(--bg-secondary)', padding: '0.5rem', borderRadius: '4px', margin: '0.2rem 0' }}>
+                                {test.input}
+                              </pre>
+                            </div>
+                            <div className="example-box">
+                              <label style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Вывод:</label>
+                              <pre style={{ background: 'var(--bg-secondary)', padding: '0.5rem', borderRadius: '4px', margin: '0.2rem 0' }}>
+                                {test.output}
+                              </pre>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </>
               )}
             </>
           ) : (
@@ -159,51 +179,112 @@ function ProblemPage() {
       </div>
 
       <div className="editor-section">
-        <div className="editor-header">
-          <select value={lang} onChange={(e) => setLang(e.target.value)} className="lang-select">
-            <option value="python">Python 3</option>
-            <option value="cpp">C++ (GCC)</option>
-          </select>
-          <button className="btn btn-primary" onClick={handleRun} disabled={isRunning}>
-            {isRunning ? status || 'Выполнение...' : 'Запустить тесты'}
-          </button>
-        </div>
-        <CodeEditor value={code} onChange={setCode} language={lang} />
-
-        {results && (
-          <div className="results-section">
-            <h3>Результаты:</h3>
-            <div className="stats">
-              Пройдено: {results.passed} / {results.total}
+        {problem.type === 'test' ? (
+          <>
+            <div className="editor-header">
+              <h3>Выберите правильный ответ:</h3>
             </div>
-            <div className="test-cases">
-              {results.details.map((r, i) => (
-                <div key={i} className={`test-case ${r.passed ? 'passed' : 'failed'}`}>
-                  <div className="test-header">
-                    <span>Тест {i + 1}: {r.passed ? 'Успешно' : 'Ошибка'} {r.isHidden ? '(Скрытый)' : ''}</span>
-                    {r.executionTime > 0 && <span className="time">{r.executionTime}ms</span>}
-                  </div>
-                  {!r.passed && !r.isHidden && (
-                    <div className="test-diff">
-                      {r.error ? (
-                        <div className="error-msg"><pre>{r.error}</pre></div>
-                      ) : (
-                        <>
-                          <div>Ожидалось: <pre>{r.expected}</pre></div>
-                          <div>Получено: <pre>{r.actual}</pre></div>
-                        </>
-                      )}
-                    </div>
-                  )}
-                  {!r.passed && r.isHidden && (
-                    <div className="test-diff">
-                      <div className="error-msg">Скрытый тест не пройден</div>
-                    </div>
-                  )}
-                </div>
+            <div style={{ padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              {problem.options && problem.options.map((opt, idx) => (
+                <label
+                  key={opt.id}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.75rem',
+                    padding: '1rem',
+                    border: selectedTestOption === idx ? '2px solid var(--primary)' : '1px solid var(--border)',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    backgroundColor: selectedTestOption === idx ? 'var(--bg-secondary)' : 'transparent',
+                    transition: 'all 0.2s',
+                  }}
+                >
+                  <input
+                    type="radio"
+                    name="test-option"
+                    checked={selectedTestOption === idx}
+                    onChange={() => setSelectedTestOption(idx)}
+                    style={{ cursor: 'pointer' }}
+                  />
+                  <span style={{ fontSize: '1rem', fontWeight: 'bold', minWidth: '30px' }}>
+                    {String.fromCharCode(65 + idx)}.
+                  </span>
+                  <span style={{ flex: 1 }}>{opt.text}</span>
+                </label>
               ))}
             </div>
-          </div>
+            <div style={{ padding: '1rem', display: 'flex', gap: '0.5rem' }}>
+              <button className="btn btn-primary" onClick={handleTestSubmit}>
+                Проверить ответ
+              </button>
+              {testResult && (
+                <div
+                  style={{
+                    flex: 1,
+                    padding: '0.75rem 1rem',
+                    borderRadius: '6px',
+                    backgroundColor: testResult.isCorrect ? 'var(--success)' : 'var(--error)',
+                    color: 'white',
+                    fontWeight: 'bold',
+                    display: 'flex',
+                    alignItems: 'center',
+                  }}
+                >
+                  {testResult.isCorrect ? '✓ Правильно!' : '✗ Неправильно'}
+                </div>
+              )}
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="editor-header">
+              <select value={lang} onChange={(e) => setLang(e.target.value)} className="lang-select">
+                <option value="python">Python 3</option>
+                <option value="cpp">C++ (GCC)</option>
+              </select>
+              <button className="btn btn-primary" onClick={handleRun} disabled={isRunning}>
+                {isRunning ? status || 'Выполнение...' : 'Запустить тесты'}
+              </button>
+            </div>
+            <CodeEditor value={code} onChange={setCode} language={lang} />
+
+            {results && (
+              <div className="results-section">
+                <h3>Результаты:</h3>
+                <div className="stats">
+                  Пройдено: {results.passed} / {results.total}
+                </div>
+                <div className="test-cases">
+                  {results.details.map((r, i) => (
+                    <div key={i} className={`test-case ${r.passed ? 'passed' : 'failed'}`}>
+                      <div className="test-header">
+                        <span>Тест {i + 1}: {r.passed ? 'Успешно' : 'Ошибка'} {r.isHidden ? '(Скрытый)' : ''}</span>
+                        {r.executionTime > 0 && <span className="time">{r.executionTime}ms</span>}
+                      </div>
+                      {!r.passed && !r.isHidden && (
+                        <div className="test-diff">
+                          {r.error ? (
+                            <div className="error-msg"><pre>{r.error}</pre></div>
+                          ) : (
+                            <>
+                              <div>Ожидалось: <pre>{r.expected}</pre></div>
+                              <div>Получено: <pre>{r.actual}</pre></div>
+                            </>
+                          )}
+                        </div>
+                      )}
+                      {!r.passed && r.isHidden && (
+                        <div className="test-diff">
+                          <div className="error-msg">Скрытый тест не пройден</div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>

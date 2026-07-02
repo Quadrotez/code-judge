@@ -54,6 +54,8 @@ const EMPTY_FORM = {
   tags: [],
   tests: [],
   hidden: false,
+  type: 'code', // 'code' или 'test'
+  options: [], // для типа 'test': массив {id, text, isCorrect}
 }
 
 function ProblemForm({ editingId, initialData, availableTags, onSave, onCancel, onExport }) {
@@ -63,10 +65,54 @@ function ProblemForm({ editingId, initialData, availableTags, onSave, onCancel, 
   const [isNewTestHidden, setIsNewTestHidden] = useState(false)
   const [editingTestId, setEditingTestId] = useState(null)
   const [selectedSolutionLanguage, setSelectedSolutionLanguage] = useState('python')
+  const [newOptionText, setNewOptionText] = useState('')
+  const [editingOptionId, setEditingOptionId] = useState(null)
   const availableSolutionLanguages = ['python', 'cpp']
   const fileInputRef = useRef(null)
 
   const set = (key, value) => setFormData((prev) => ({ ...prev, [key]: value }))
+
+  const addOption = () => {
+    if (!newOptionText.trim()) return
+    if (editingOptionId) {
+      setFormData((prev) => ({
+        ...prev,
+        options: prev.options.map((o) =>
+          o.id === editingOptionId ? { ...o, text: newOptionText } : o
+        ),
+      }))
+      setEditingOptionId(null)
+    } else {
+      const newOption = {
+        id: `opt_${Date.now()}`,
+        text: newOptionText,
+        isCorrect: false,
+      }
+      setFormData((prev) => ({ ...prev, options: [...prev.options, newOption] }))
+    }
+    setNewOptionText('')
+  }
+
+  const toggleOptionCorrect = (optionId) => {
+    setFormData((prev) => ({
+      ...prev,
+      options: prev.options.map((o) =>
+        o.id === optionId ? { ...o, isCorrect: !o.isCorrect } : o
+      ),
+    }))
+  }
+
+  const removeOption = (optionId) => {
+    setFormData((prev) => ({
+      ...prev,
+      options: prev.options.filter((o) => o.id !== optionId),
+    }))
+  }
+
+  const editOption = (option) => {
+    setEditingOptionId(option.id)
+    setNewOptionText(option.text)
+  }
 
   const toggleTag = (tagName) => {
     setFormData((prev) => ({
@@ -200,6 +246,25 @@ function ProblemForm({ editingId, initialData, availableTags, onSave, onCancel, 
         />
       </div>
 
+      {/* Problem Type */}
+      <div className="form-group">
+        <label>Тип задачи</label>
+        <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
+          <button
+            className={`tag-chip ${formData.type === 'code' ? 'active' : ''}`}
+            onClick={() => set('type', 'code')}
+          >
+            Код
+          </button>
+          <button
+            className={`tag-chip ${formData.type === 'test' ? 'active' : ''}`}
+            onClick={() => set('type', 'test')}
+          >
+            Тест
+          </button>
+        </div>
+      </div>
+
       {/* Hidden flag */}
       <div className="form-group">
         <label className="checkbox-label" style={{ fontWeight: 600 }}>
@@ -231,9 +296,9 @@ function ProblemForm({ editingId, initialData, availableTags, onSave, onCancel, 
         </div>
       </div>
 
-      {/* Description */}
+      {/* Description / Condition */}
       <div className="form-group">
-        <label>Описание</label>
+        <label>{formData.type === 'test' ? 'Условие' : 'Описание'}</label>
         <div className="form-grid">
           <textarea
             value={formData.description}
@@ -248,79 +313,143 @@ function ProblemForm({ editingId, initialData, availableTags, onSave, onCancel, 
         </div>
       </div>
 
-      {/* Input Format */}
-      <div className="form-group">
-        <label>Формат ввода</label>
-        <div className="form-grid">
-          <textarea
-            value={formData.inputFormat || ''}
-            onChange={(e) => set('inputFormat', e.target.value)}
-            className="form-input"
-            rows={6}
-          />
-          <div className="preview-box">
-            <label className="preview-label">Предпросмотр</label>
-            <MarkdownRenderer text={formData.inputFormat || ''} />
-          </div>
-        </div>
-      </div>
-
-      {/* Output Format */}
-      <div className="form-group">
-        <label>Формат вывода</label>
-        <div className="form-grid">
-          <textarea
-            value={formData.outputFormat || ''}
-            onChange={(e) => set('outputFormat', e.target.value)}
-            className="form-input"
-            rows={6}
-          />
-          <div className="preview-box">
-            <label className="preview-label">Предпросмотр</label>
-            <MarkdownRenderer text={formData.outputFormat || ''} />
-          </div>
-        </div>
-      </div>
-
-      {/* Solutions */}
-      <div className="form-group">
-        <label>Решения (опционально)</label>
-        <div>
-          <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
-            {availableSolutionLanguages.map((lang) => (
-              <button
-                key={lang}
-                className={`tag-chip ${selectedSolutionLanguage === lang ? 'active' : ''}`}
-                onClick={() => setSelectedSolutionLanguage(lang)}
-              >
-                {lang.charAt(0).toUpperCase() + lang.slice(1)}
-                {formData.solutions?.[lang] && ' ✓'}
-              </button>
-            ))}
-          </div>
-          <div className="form-grid">
-            <textarea
-              value={formData.solutions?.[selectedSolutionLanguage] || ''}
-              onChange={(e) =>
-                setFormData((prev) => ({
-                  ...prev,
-                  solutions: { ...prev.solutions, [selectedSolutionLanguage]: e.target.value },
-                }))
-              }
-              className="form-input"
-              rows={12}
-            />
-            <div className="preview-box">
-              <label className="preview-label">Предпросмотр</label>
-              <MarkdownRenderer text={formData.solutions?.[selectedSolutionLanguage] || ''} />
+      {formData.type === 'code' && (
+        <>
+          {/* Input Format */}
+          <div className="form-group">
+            <label>Формат ввода</label>
+            <div className="form-grid">
+              <textarea
+                value={formData.inputFormat || ''}
+                onChange={(e) => set('inputFormat', e.target.value)}
+                className="form-input"
+                rows={6}
+              />
+              <div className="preview-box">
+                <label className="preview-label">Предпросмотр</label>
+                <MarkdownRenderer text={formData.inputFormat || ''} />
+              </div>
             </div>
           </div>
-        </div>
-      </div>
 
-      {/* Tests */}
-      <div className="form-group">
-        <label>Тесты</label>
+          {/* Output Format */}
+          <div className="form-group">
+            <label>Формат вывода</label>
+            <div className="form-grid">
+              <textarea
+                value={formData.outputFormat || ''}
+                onChange={(e) => set('outputFormat', e.target.value)}
+                className="form-input"
+                rows={6}
+              />
+              <div className="preview-box">
+                <label className="preview-label">Предпросмотр</label>
+                <MarkdownRenderer text={formData.outputFormat || ''} />
+              </div>
+            </div>
+          </div>
+
+          {/* Solutions */}
+          <div className="form-group">
+            <label>Решения (опционально)</label>
+            <div>
+              <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
+                {availableSolutionLanguages.map((lang) => (
+                  <button
+                    key={lang}
+                    className={`tag-chip ${selectedSolutionLanguage === lang ? 'active' : ''}`}
+                    onClick={() => setSelectedSolutionLanguage(lang)}
+                  >
+                    {lang.charAt(0).toUpperCase() + lang.slice(1)}
+                    {formData.solutions?.[lang] && ' ✓'}
+                  </button>
+                ))}
+              </div>
+              <div className="form-grid">
+                <textarea
+                  value={formData.solutions?.[selectedSolutionLanguage] || ''}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      solutions: { ...prev.solutions, [selectedSolutionLanguage]: e.target.value },
+                    }))
+                  }
+                  className="form-input"
+                  rows={12}
+                />
+                <div className="preview-box">
+                  <label className="preview-label">Предпросмотр</label>
+                  <MarkdownRenderer text={formData.solutions?.[selectedSolutionLanguage] || ''} />
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Test Options (for type='test') */}
+      {formData.type === 'test' && (
+        <div className="form-group">
+          <label>Варианты ответов</label>
+          <div className="tests-list" style={{ marginBottom: '1rem' }}>
+            {formData.options.map((opt, idx) => (
+              <div key={opt.id} className="test-item">
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1 }}>
+                  <input
+                    type="checkbox"
+                    checked={opt.isCorrect}
+                    onChange={() => toggleOptionCorrect(opt.id)}
+                    title="Маркировать как правильный ответ"
+                  />
+                  <span style={{ fontWeight: 'bold', fontSize: '0.9rem', minWidth: '30px' }}>
+                    {String.fromCharCode(65 + idx)}.
+                  </span>
+                  <span style={{ flex: 1, wordBreak: 'break-word' }}>{opt.text}</span>
+                  {opt.isCorrect && <span style={{ color: 'var(--success)', fontWeight: 'bold' }}>✓</span>}
+                </div>
+                <div className="p-actions">
+                  <button onClick={() => editOption(opt)} className="btn-icon" title="Редактировать">
+                    <Icon name="pencil" size={14} />
+                  </button>
+                  <button onClick={() => removeOption(opt.id)} className="btn-icon text-red" title="Удалить">
+                    <Icon name="trash" size={14} />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="add-test-form" style={{ gridTemplateColumns: '1fr auto auto' }}>
+            <input
+              type="text"
+              placeholder="Новый вариант ответа"
+              value={newOptionText}
+              onChange={(e) => setNewOptionText(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && addOption()}
+              className="form-input"
+            />
+            <button onClick={addOption} className="btn btn-primary" style={{ marginTop: 0 }}>
+              {editingOptionId ? 'Обновить' : 'Добавить'}
+            </button>
+            {editingOptionId && (
+              <button
+                onClick={() => {
+                  setEditingOptionId(null)
+                  setNewOptionText('')
+                }}
+                className="btn"
+                style={{ marginTop: 0 }}
+              >
+                Отмена
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Tests (only for code) */}
+      {formData.type === 'code' && (
+        <div className="form-group">
+          <label>Тесты</label>
         <div className="tests-list" style={{ marginBottom: '1rem' }}>
           {formData.tests.map((t, idx) => (
             <div
@@ -388,6 +517,7 @@ function ProblemForm({ editingId, initialData, availableTags, onSave, onCancel, 
           </div>
         </div>
       </div>
+      )}
 
       <div className="form-actions">
         <button className="btn" onClick={onCancel}>Отмена</button>
@@ -781,9 +911,24 @@ function ProblemsAdminTab({ onLogout }) {
               <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 {p.title}
                 {p.hidden && (
-                  <span className="hidden-badge" title="Скрытая задача">
-                    <Icon name="eyeSlash" size={14} />
-                  </span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    <span className="hidden-badge" title="Скрытая задача">
+                      <Icon name="eyeSlash" size={14} />
+                    </span>
+                    <button
+                      className="btn-icon"
+                      style={{ padding: '2px', opacity: 0.6 }}
+                      title="Копировать ссылку на скрытую задачу"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        const url = `${window.location.origin}/problem/${p.id}`
+                        navigator.clipboard.writeText(url)
+                        alert('Ссылка скопирована: ' + url)
+                      }}
+                    >
+                      <Icon name="link" size={12} />
+                    </button>
+                  </div>
                 )}
               </h3>
               <div className="p-tags">

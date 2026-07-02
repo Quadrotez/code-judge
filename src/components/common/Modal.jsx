@@ -15,7 +15,7 @@ const Modal = ({ isOpen, onClose, title, children, size = '' }) => {
       <div className={`modal-content ${size}`} onClick={e => e.stopPropagation()}>
         <div className="modal-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
           <h2 style={{ margin: 0 }}>{title}</h2>
-          <button className="btn-icon" onClick={onClose}><Icon name="plus" style={{ transform: 'rotate(45deg)' }} /></button>
+          <button className="btn-icon" onClick={onClose}><Icon name="x" /></button>
         </div>
         {children}
       </div>
