@@ -59,11 +59,33 @@ const EMPTY_FORM = {
 }
 
 function ProblemForm({ editingId, initialData, availableTags, onSave, onCancel, onExport }) {
-  const [formData, setFormData] = useState(initialData || EMPTY_FORM)
+  const [formData, setFormData] = useState(() => {
+    if (initialData) {
+      return {
+        ...EMPTY_FORM,
+        ...initialData,
+        type: initialData.type || 'code'
+      }
+    }
+    return EMPTY_FORM
+  })
   const [newTestInput, setNewTestInput] = useState('')
   const [newTestOutput, setNewTestOutput] = useState('')
   const [isNewTestHidden, setIsNewTestHidden] = useState(false)
   const [editingTestId, setEditingTestId] = useState(null)
+
+  useEffect(() => {
+    if (initialData) {
+      setFormData({
+        ...EMPTY_FORM,
+        ...initialData,
+        type: initialData.type || 'code'
+      })
+    } else {
+      setFormData(EMPTY_FORM)
+    }
+  }, [initialData])
+
   const [selectedSolutionLanguage, setSelectedSolutionLanguage] = useState('python')
   const [newOptionText, setNewOptionText] = useState('')
   const [editingOptionId, setEditingOptionId] = useState(null)
