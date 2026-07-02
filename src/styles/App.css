@@ -985,3 +985,120 @@ body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Ro
 .auth-input { width: 100%; padding: 1rem; border-radius: 10px; border: 1px solid var(--border); margin: 1.5rem 0; font-size: 1.1rem; text-align: center; background: var(--bg-secondary); color: var(--text-primary); }
 .auth-btn { width: 100%; padding: 1rem; background: var(--primary); color: white; border: none; border-radius: 10px; font-weight: bold; font-size: 1rem; cursor: pointer; transition: background 0.2s; }
 .auth-btn:hover { background: #16a34a; }
+
+/* ─── BULK SELECTION ─────────────────────────────────────────────────────── */
+
+/* Checkbox used in bulk-select column */
+.bulk-checkbox-label {
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+  user-select: none;
+  flex-shrink: 0;
+}
+.bulk-checkbox-label input[type="checkbox"] {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+.bulk-checkbox-box {
+  width: 1.15rem;
+  height: 1.15rem;
+  border: 2px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, border-color 0.15s;
+  flex-shrink: 0;
+}
+.bulk-checkbox-label:hover .bulk-checkbox-box {
+  border-color: var(--primary);
+}
+.bulk-checkbox-label input[type="checkbox"]:checked + .bulk-checkbox-box {
+  background: var(--primary);
+  border-color: var(--primary);
+}
+.bulk-checkbox-label input[type="checkbox"]:checked + .bulk-checkbox-box::after {
+  content: '✓';
+  color: white;
+  font-size: 0.75rem;
+  font-weight: bold;
+  line-height: 1;
+}
+.bulk-checkbox-label input[type="checkbox"]:indeterminate + .bulk-checkbox-box {
+  background: var(--primary);
+  border-color: var(--primary);
+}
+.bulk-checkbox-label input[type="checkbox"]:indeterminate + .bulk-checkbox-box::after {
+  content: '–';
+  color: white;
+  font-size: 0.8rem;
+  font-weight: bold;
+  line-height: 1;
+}
+
+/* Select-all header row inside the problems list */
+.admin-problems-select-all {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.75rem 1.5rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-secondary);
+}
+.select-all-hint {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  user-select: none;
+}
+
+/* Highlighted selected row */
+.admin-problem-item.selected {
+  background: color-mix(in srgb, var(--primary) 8%, var(--bg-primary));
+  border-left: 3px solid var(--primary);
+}
+.admin-problem-item.selected:hover {
+  background: color-mix(in srgb, var(--primary) 14%, var(--bg-primary));
+}
+
+/* Bulk action toolbar that appears above the list when items are selected */
+.bulk-action-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 1.25rem;
+  background: color-mix(in srgb, var(--primary) 10%, var(--bg-primary));
+  border: 1px solid color-mix(in srgb, var(--primary) 30%, var(--border));
+  border-radius: 10px;
+  margin-top: 1rem;
+  flex-wrap: wrap;
+}
+.bulk-count {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+.bulk-count strong {
+  color: var(--primary);
+}
+.bulk-actions {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+/* Danger button variant */
+.btn.btn-danger {
+  background: var(--danger, #ef4444);
+  color: white;
+  border: none;
+}
+.btn.btn-danger:hover {
+  background: #dc2626;
+}

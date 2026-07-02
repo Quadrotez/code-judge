@@ -1,4 +1,43 @@
-// src/utils/storage.js - Firestore version
+/**
+ * src/utils/storage.js
+ *
+ * Единая точка доступа к хранилищу данных.
+ *
+ * Если переменная окружения VITE_CODEJUDGE_TESTMODE === '1',
+ * все операции перенаправляются в одноразовую in-memory БД (memoryDb.js),
+ * которая не требует Firebase и сбрасывается при перезагрузке страницы.
+ *
+ * В противном случае используется Firestore (поведение без изменений).
+ */
+
+// ─── Определяем режим работы ──────────────────────────────────────────────────
+
+export const IS_TEST_MODE = 
+  import.meta.env.VITE_CODEJUDGE_TESTMODE === '1' || 
+  import.meta.env.CODEJUDGE_TESTMODE === '1'
+
+if (IS_TEST_MODE) {
+  console.warn(
+    '[CodeJudge] ТЕСТОВЫЙ РЕЖИМ АКТИВЕН (CODEJUDGE_TESTMODE=1). ' +
+    'Данные хранятся только в памяти и будут потеряны при перезагрузке страницы.'
+  )
+}
+
+// ─── Firestore imports (только в production-режиме) ───────────────────────────
+
+import {
+  memGetProblems, memGetProblemById, memSaveProblem, memDeleteProblem,
+  memGetTags, memSaveTag, memDeleteTag,
+  memExportProblems, memImportProblemsResolved,
+  memGetCourses, memGetCourseById, memSaveCourse, memDeleteCourse,
+  memGetParagraphs, memSaveParagraph, memDeleteParagraph,
+  memGetChapters, memSaveChapter, memDeleteChapter,
+} from './memoryDb'
+
+// Firestore и auth импортируются статически, но используются только при IS_TEST_MODE === false.
+// Это безопасно: Vite/ESM всегда загружает статические импорты, но Firebase SDK
+// инициализируется лениво при первом обращении к firebaseConfig.js.
+import { db, auth } from './firebaseConfig'
 import {
   collection,
   getDocs,
@@ -7,21 +46,25 @@ import {
   setDoc,
   deleteDoc,
 } from 'firebase/firestore'
-import { db, auth } from './firebaseConfig'
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const PROBLEMS_COLLECTION = 'problems'
 const TAGS_COLLECTION = 'tags'
 const COURSES_COLLECTION = 'courses'
 
+const requireFirestoreAuth = () => {
+  if (!auth.currentUser) throw new Error('Unauthorized - admin session required')
+}
+
 // ─── PROBLEMS ────────────────────────────────────────────────────────────────
 
 export const getProblems = async () => {
+  if (IS_TEST_MODE) return memGetProblems()
   try {
     const querySnapshot = await getDocs(collection(db, PROBLEMS_COLLECTION))
     const problems = []
-    querySnapshot.forEach((d) => {
-      problems.push({ id: d.id, ...d.data() })
-    })
+    querySnapshot.forEach((d) => { problems.push({ id: d.id, ...d.data() }) })
     return problems
   } catch (error) {
     console.error('Error fetching problems:', error)
@@ -30,6 +73,7 @@ export const getProblems = async () => {
 }
 
 export const getProblemById = async (id) => {
+  if (IS_TEST_MODE) return memGetProblemById(id)
   try {
     const docRef = doc(db, PROBLEMS_COLLECTION, id)
     const docSnap = await getDoc(docRef)
@@ -42,8 +86,9 @@ export const getProblemById = async (id) => {
 }
 
 export const saveProblem = async (problem) => {
+  if (IS_TEST_MODE) return memSaveProblem(problem)
   try {
-    if (!auth.currentUser) throw new Error('Unauthorized - admin session required')
+    requireFirestoreAuth()
     const problemId = problem.id || `problem_${Date.now()}`
     const dataToSave = { ...problem, id: problemId, updatedAt: new Date().toISOString() }
     await setDoc(doc(db, PROBLEMS_COLLECTION, problemId), dataToSave)
@@ -55,8 +100,9 @@ export const saveProblem = async (problem) => {
 }
 
 export const deleteProblem = async (id) => {
+  if (IS_TEST_MODE) return memDeleteProblem(id)
   try {
-    if (!auth.currentUser) throw new Error('Unauthorized - admin session required')
+    requireFirestoreAuth()
     await deleteDoc(doc(db, PROBLEMS_COLLECTION, id))
     return { success: true }
   } catch (error) {
@@ -68,6 +114,7 @@ export const deleteProblem = async (id) => {
 // ─── IMPORT / EXPORT ─────────────────────────────────────────────────────────
 
 export const exportProblems = async () => {
+  if (IS_TEST_MODE) return memExportProblems()
   if (!auth.currentUser) throw new Error('Unauthorized - admin session required')
   const problems = await getProblems()
   return JSON.stringify(problems, null, 2)
@@ -77,14 +124,8 @@ export const exportSingleProblem = (problem) => {
   return JSON.stringify(problem, null, 2)
 }
 
-/**
- * Import problems with conflict resolution.
- * @param {Array} incoming - array of problem objects to import
- * @param {Array} existing - current problems in DB
- * @param {Object} resolutions - map of problem title -> 'overwrite' | 'skip' | 'create'
- * @returns {Promise<{ imported: number, skipped: number }>}
- */
 export const importProblemsResolved = async (incoming, existing, resolutions) => {
+  if (IS_TEST_MODE) return memImportProblemsResolved(incoming, existing, resolutions)
   if (!auth.currentUser) throw new Error('Unauthorized - admin session required')
 
   let imported = 0
@@ -122,6 +163,7 @@ export const importProblemsResolved = async (incoming, existing, resolutions) =>
 }
 
 // ─── SUBMISSIONS ──────────────────────────────────────────────────────────────
+// Submissions всегда хранятся в localStorage (не в Firestore), режим не влияет.
 
 export const saveSubmission = (problemId, language, code, result) => {
   const submissions = JSON.parse(localStorage.getItem('submissions') || '[]')
@@ -137,6 +179,7 @@ export const getSubmissions = (problemId) => {
 // ─── TAGS ─────────────────────────────────────────────────────────────────────
 
 export const getTags = async () => {
+  if (IS_TEST_MODE) return memGetTags()
   try {
     const querySnapshot = await getDocs(collection(db, TAGS_COLLECTION))
     const tags = []
@@ -149,8 +192,9 @@ export const getTags = async () => {
 }
 
 export const saveTag = async (tag) => {
+  if (IS_TEST_MODE) return memSaveTag(tag)
   try {
-    if (!auth.currentUser) throw new Error('Unauthorized - admin session required')
+    requireFirestoreAuth()
     const tagId = tag.id || `tag_${Date.now()}`
     await setDoc(doc(db, TAGS_COLLECTION, tagId), tag)
     return { id: tagId, ...tag }
@@ -161,8 +205,9 @@ export const saveTag = async (tag) => {
 }
 
 export const deleteTag = async (id) => {
+  if (IS_TEST_MODE) return memDeleteTag(id)
   try {
-    if (!auth.currentUser) throw new Error('Unauthorized - admin session required')
+    requireFirestoreAuth()
     await deleteDoc(doc(db, TAGS_COLLECTION, id))
     return { success: true }
   } catch (error) {
@@ -174,6 +219,7 @@ export const deleteTag = async (id) => {
 // ─── EDU: COURSES ─────────────────────────────────────────────────────────────
 
 export const getCourses = async () => {
+  if (IS_TEST_MODE) return memGetCourses()
   try {
     const querySnapshot = await getDocs(collection(db, COURSES_COLLECTION))
     const courses = []
@@ -186,6 +232,7 @@ export const getCourses = async () => {
 }
 
 export const getCourseById = async (id) => {
+  if (IS_TEST_MODE) return memGetCourseById(id)
   try {
     const docSnap = await getDoc(doc(db, COURSES_COLLECTION, id))
     if (docSnap.exists()) return { id: docSnap.id, ...docSnap.data() }
@@ -197,8 +244,9 @@ export const getCourseById = async (id) => {
 }
 
 export const saveCourse = async (course) => {
+  if (IS_TEST_MODE) return memSaveCourse(course)
   try {
-    if (!auth.currentUser) throw new Error('Unauthorized - admin session required')
+    requireFirestoreAuth()
     const courseId = course.id || `course_${Date.now()}`
     const dataToSave = { ...course, id: courseId, updatedAt: new Date().toISOString() }
     await setDoc(doc(db, COURSES_COLLECTION, courseId), dataToSave)
@@ -210,8 +258,9 @@ export const saveCourse = async (course) => {
 }
 
 export const deleteCourse = async (id) => {
+  if (IS_TEST_MODE) return memDeleteCourse(id)
   try {
-    if (!auth.currentUser) throw new Error('Unauthorized - admin session required')
+    requireFirestoreAuth()
     await deleteDoc(doc(db, COURSES_COLLECTION, id))
     return { success: true }
   } catch (error) {
@@ -223,6 +272,7 @@ export const deleteCourse = async (id) => {
 // ─── EDU: PARAGRAPHS ──────────────────────────────────────────────────────────
 
 export const getParagraphs = async (courseId) => {
+  if (IS_TEST_MODE) return memGetParagraphs(courseId)
   try {
     const querySnapshot = await getDocs(
       collection(db, COURSES_COLLECTION, courseId, 'paragraphs')
@@ -238,8 +288,9 @@ export const getParagraphs = async (courseId) => {
 }
 
 export const saveParagraph = async (courseId, paragraph) => {
+  if (IS_TEST_MODE) return memSaveParagraph(courseId, paragraph)
   try {
-    if (!auth.currentUser) throw new Error('Unauthorized - admin session required')
+    requireFirestoreAuth()
     const pId = paragraph.id || `para_${Date.now()}`
     const dataToSave = { ...paragraph, id: pId, updatedAt: new Date().toISOString() }
     await setDoc(
@@ -254,8 +305,9 @@ export const saveParagraph = async (courseId, paragraph) => {
 }
 
 export const deleteParagraph = async (courseId, paragraphId) => {
+  if (IS_TEST_MODE) return memDeleteParagraph(courseId, paragraphId)
   try {
-    if (!auth.currentUser) throw new Error('Unauthorized - admin session required')
+    requireFirestoreAuth()
     await deleteDoc(doc(db, COURSES_COLLECTION, courseId, 'paragraphs', paragraphId))
     return { success: true }
   } catch (error) {
@@ -267,6 +319,7 @@ export const deleteParagraph = async (courseId, paragraphId) => {
 // ─── EDU: CHAPTERS ────────────────────────────────────────────────────────────
 
 export const getChapters = async (courseId, paragraphId) => {
+  if (IS_TEST_MODE) return memGetChapters(courseId, paragraphId)
   try {
     const querySnapshot = await getDocs(
       collection(db, COURSES_COLLECTION, courseId, 'paragraphs', paragraphId, 'chapters')
@@ -282,8 +335,9 @@ export const getChapters = async (courseId, paragraphId) => {
 }
 
 export const saveChapter = async (courseId, paragraphId, chapter) => {
+  if (IS_TEST_MODE) return memSaveChapter(courseId, paragraphId, chapter)
   try {
-    if (!auth.currentUser) throw new Error('Unauthorized - admin session required')
+    requireFirestoreAuth()
     const cId = chapter.id || `chap_${Date.now()}`
     const dataToSave = { ...chapter, id: cId, updatedAt: new Date().toISOString() }
     await setDoc(
@@ -298,8 +352,9 @@ export const saveChapter = async (courseId, paragraphId, chapter) => {
 }
 
 export const deleteChapter = async (courseId, paragraphId, chapterId) => {
+  if (IS_TEST_MODE) return memDeleteChapter(courseId, paragraphId, chapterId)
   try {
-    if (!auth.currentUser) throw new Error('Unauthorized - admin session required')
+    requireFirestoreAuth()
     await deleteDoc(
       doc(db, COURSES_COLLECTION, courseId, 'paragraphs', paragraphId, 'chapters', chapterId)
     )

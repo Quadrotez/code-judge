@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import {
   getProblems, saveProblem, deleteProblem, getTags,
   exportProblems, exportSingleProblem, importProblemsResolved,
@@ -417,6 +417,10 @@ function ProblemsAdminTab({ onLogout }) {
   const [showConflictModal, setShowConflictModal] = useState(false)
   const importFileRef = useRef(null)
 
+  // ── Bulk selection state ──────────────────────────────────────────────────
+  const [selectedIds, setSelectedIds] = useState(new Set())
+  const [lastClickedIdx, setLastClickedIdx] = useState(null)
+
   const loadData = async () => {
     const [probs, tags] = await Promise.all([getProblems(), getTags()])
     setProblems(probs)
@@ -424,6 +428,15 @@ function ProblemsAdminTab({ onLogout }) {
   }
 
   useEffect(() => { loadData() }, [])
+
+  // Reset selection when problems list changes
+  useEffect(() => {
+    setSelectedIds((prev) => {
+      const validIds = new Set(problems.map((p) => p.id))
+      const next = new Set([...prev].filter((id) => validIds.has(id)))
+      return next
+    })
+  }, [problems])
 
   const handleDeleteProblem = async (id) => {
     if (confirm('Удалить задачу?')) {
@@ -520,6 +533,85 @@ function ProblemsAdminTab({ onLogout }) {
       alert('Ошибка: ' + e.message)
     }
   }
+
+  // ── Bulk selection handlers ───────────────────────────────────────────────
+
+  /**
+   * Toggle a single checkbox. With Shift held, selects the range from the
+   * last clicked item to the current one (inclusive).
+   */
+  const handleCheckboxClick = (problemId, idx, e) => {
+    // Останавливаем всплытие и предотвращаем стандартное поведение, 
+    // чтобы событие не срабатывало дважды (на label и на input)
+    e.preventDefault()
+    e.stopPropagation()
+
+    const isShift = e.shiftKey
+    const isCurrentlySelected = selectedIds.has(problemId)
+
+    if (isShift && lastClickedIdx !== null) {
+      const from = Math.min(lastClickedIdx, idx)
+      const to = Math.max(lastClickedIdx, idx)
+      const rangeIds = problems.slice(from, to + 1).map((p) => p.id)
+      
+      setSelectedIds((prev) => {
+        const next = new Set(prev)
+        // В режиме Shift мы инвертируем состояние текущего элемента 
+        // и применяем его ко всему диапазону
+        const shouldSelect = !isCurrentlySelected
+        rangeIds.forEach((id) => {
+          if (shouldSelect) next.add(id)
+          else next.delete(id)
+        })
+        return next
+      })
+    } else {
+      setSelectedIds((prev) => {
+        const next = new Set(prev)
+        if (isCurrentlySelected) next.delete(problemId)
+        else next.add(problemId)
+        return next
+      })
+    }
+    setLastClickedIdx(idx)
+  }
+
+  const handleSelectAll = () => {
+    if (selectedIds.size === problems.length) {
+      setSelectedIds(new Set())
+      setLastClickedIdx(null)
+    } else {
+      setSelectedIds(new Set(problems.map((p) => p.id)))
+    }
+  }
+
+  const handleBulkDelete = async () => {
+    const count = selectedIds.size
+    if (!count) return
+    if (!confirm(`Удалить ${count} задач(и)?`)) return
+    for (const id of selectedIds) {
+      await deleteProblem(id)
+    }
+    setSelectedIds(new Set())
+    setLastClickedIdx(null)
+    await loadData()
+  }
+
+  const handleBulkExport = () => {
+    const selected = problems.filter((p) => selectedIds.has(p.id))
+    if (!selected.length) return
+    const json = JSON.stringify(selected, null, 2)
+    const blob = new Blob([json], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `problems_selected_${Date.now()}.json`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const allSelected = problems.length > 0 && selectedIds.size === problems.length
+  const someSelected = selectedIds.size > 0 && !allSelected
 
   return (
     <div>
@@ -640,10 +732,51 @@ function ProblemsAdminTab({ onLogout }) {
         />
       )}
 
+      {/* Bulk Action Toolbar */}
+      {selectedIds.size > 0 && (
+        <div className="bulk-action-toolbar">
+          <span className="bulk-count">
+            Выбрано: <strong>{selectedIds.size}</strong> из {problems.length}
+          </span>
+          <div className="bulk-actions">
+            <button className="btn btn-secondary" onClick={handleBulkExport} title="Экспортировать выбранные">
+              <Icon name="download" size={16} /> Экспортировать выбранные
+            </button>
+            <button className="btn btn-danger" onClick={handleBulkDelete} title="Удалить выбранные">
+              <Icon name="trash" size={16} /> Удалить выбранные
+            </button>
+            <button className="btn btn-secondary" onClick={() => { setSelectedIds(new Set()); setLastClickedIdx(null) }}>
+              Снять выделение
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Problems List */}
       <div className="admin-problems-list">
-        {problems.map((p) => (
-          <div key={p.id} className="admin-problem-item">
+        {/* Select-all header row */}
+        {problems.length > 0 && (
+          <div className="admin-problems-select-all">
+            <label className="bulk-checkbox-label" title="Выбрать все">
+              <input
+                type="checkbox"
+                checked={allSelected}
+                ref={(el) => { if (el) el.indeterminate = someSelected }}
+                onChange={handleSelectAll}
+              />
+              <span className="bulk-checkbox-box" />
+            </label>
+            <span className="select-all-hint">
+              {allSelected ? 'Снять выделение со всех' : 'Выбрать все'}
+            </span>
+          </div>
+        )}
+
+        {problems.map((p, idx) => (
+          <div
+            key={p.id}
+            className={`admin-problem-item ${selectedIds.has(p.id) ? 'selected' : ''}`}
+          >
             <div className="p-info">
               <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 {p.title}
@@ -671,6 +804,19 @@ function ProblemsAdminTab({ onLogout }) {
               <button onClick={() => handleDeleteProblem(p.id)} className="btn-icon text-red" title="Удалить">
                 <Icon name="trash" />
               </button>
+              {/* Bulk selection checkbox — right side */}
+              <label
+                className="bulk-checkbox-label"
+                title={selectedIds.has(p.id) ? 'Снять выделение' : 'Выбрать задачу (Shift+клик для диапазона)'}
+                onClick={(e) => handleCheckboxClick(p.id, idx, e)}
+              >
+                <input
+                  type="checkbox"
+                  checked={selectedIds.has(p.id)}
+                  readOnly // Управляется через onClick на label
+                />
+                <span className="bulk-checkbox-box" />
+              </label>
             </div>
           </div>
         ))}

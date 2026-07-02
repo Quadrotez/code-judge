@@ -5,6 +5,10 @@ export default defineConfig({
   plugins: [react()],
   base: '/',
 
+  // Разрешаем Vite подхватывать переменные CODEJUDGE_* из системного окружения
+  // и делать их доступными через import.meta.env.CODEJUDGE_*
+  envPrefix: ['VITE_', 'CODEJUDGE_'],
+
   server: {
     port: 5173,
     host: '0.0.0.0',
