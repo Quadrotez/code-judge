@@ -10,13 +10,9 @@ export default defineConfig({
   envPrefix: ['VITE_', 'CODEJUDGE_'],
 
   server: {
-    port: 5173,
+    port: 5000,
     host: '0.0.0.0',
-    allowedHosts: [
-      'all',
-      '.manus.computer',
-      'localhost',
-    ],
+    allowedHosts: 'all',
 
     proxy: {
       '/api': {
