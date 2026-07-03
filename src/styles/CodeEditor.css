@@ -74,7 +74,7 @@
   color: inherit;
   white-space: pre-wrap;
   word-wrap: break-word;
-  word-break: break-all;
+  word-break: normal;
   overflow: hidden;
   tab-size: 2;
   -moz-tab-size: 2;
@@ -86,7 +86,7 @@
   min-height: 1.5em;
   white-space: pre-wrap;
   word-wrap: break-word;
-  word-break: break-all;
+  word-break: normal;
 }
 
 .editor-highlight code {
@@ -113,7 +113,7 @@
   overflow-y: scroll;
   white-space: pre-wrap;
   word-wrap: break-word;
-  word-break: break-all;
+  word-break: normal;
 }
 
 .editor-textarea:focus {

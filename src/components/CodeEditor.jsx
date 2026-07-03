@@ -227,11 +227,22 @@ export const CodeEditor = ({ language, onChange, value, readOnly = false }) => {
 
     // Запускаем синхронизацию после рендеринга и при изменении размера окна
     const timeoutId = setTimeout(syncHeights, 0)
+    
+    // Добавляем ResizeObserver для более точной синхронизации при изменении размеров
+    const resizeObserver = new ResizeObserver(() => {
+      syncHeights()
+    })
+    
+    if (textareaRef.current) {
+      resizeObserver.observe(textareaRef.current)
+    }
+
     window.addEventListener('resize', syncHeights)
     
     return () => {
       clearTimeout(timeoutId)
       window.removeEventListener('resize', syncHeights)
+      resizeObserver.disconnect()
     }
   }, [value, language])
 
