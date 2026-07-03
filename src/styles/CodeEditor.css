@@ -44,8 +44,18 @@
   overflow: hidden;
 }
 
+.line-number-wrapper {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: center;
+}
+
 .line-number {
   height: 1.5em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 /* Highlight блок показывает синтаксис */
@@ -62,13 +72,21 @@
   line-height: 1.5;
   background: transparent;
   color: inherit;
-  white-space: pre;
+  white-space: pre-wrap;
   word-wrap: break-word;
+  word-break: break-all;
   overflow: hidden;
   tab-size: 2;
   -moz-tab-size: 2;
   z-index: 1;
   pointer-events: none;
+}
+
+.code-line {
+  min-height: 1.5em;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  word-break: break-all;
 }
 
 .editor-highlight code {
@@ -93,6 +111,9 @@
   z-index: 2;
   caret-color: var(--text-primary);
   overflow-y: scroll;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  word-break: break-all;
 }
 
 .editor-textarea:focus {

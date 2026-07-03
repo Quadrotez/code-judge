@@ -44,6 +44,43 @@ export const CodeEditor = ({ language, onChange, value, readOnly = false }) => {
     }
   }
   
+  // Функция для разделения HTML на строки с сохранением тегов
+  const splitHtmlIntoLines = (html) => {
+    const lines = []
+    const tagStack = []
+    let currentLine = ""
+    
+    const parts = html.split(/(<[^>]+>)/g)
+    for (const part of parts) {
+      if (!part) continue
+      if (part.startsWith("<")) {
+        if (part.startsWith("</")) {
+          tagStack.pop()
+        } else if (!part.endsWith("/>")) {
+          tagStack.push(part)
+        }
+        currentLine += part
+      } else {
+        const textParts = part.split(/\r?\n/)
+        for (let i = 0; i < textParts.length; i++) {
+          currentLine += textParts[i]
+          if (i < textParts.length - 1) {
+            // Закрываем все открытые теги
+            for (let j = tagStack.length - 1; j >= 0; j--) {
+              const match = tagStack[j].match(/<([a-z0-9-]+)/i)
+              if (match) currentLine += `</${match[1]}>`
+            }
+            lines.push(currentLine)
+            // Открываем их снова для следующей строки
+            currentLine = tagStack.join("")
+          }
+        }
+      }
+    }
+    lines.push(currentLine)
+    return lines
+  }
+
   // Обновление подсветки кода
   useEffect(() => {
     if (highlightedRef.current && value) {
@@ -51,7 +88,11 @@ export const CodeEditor = ({ language, onChange, value, readOnly = false }) => {
         language: language.toLowerCase(),
         ignoreIllegals: true
       }).value
-      highlightedRef.current.innerHTML = `<pre><code class="hljs language-${language.toLowerCase()}">${highlighted}</code></pre>`
+      
+      const lines = splitHtmlIntoLines(highlighted)
+      highlightedRef.current.innerHTML = lines
+        .map((line, i) => `<div class="code-line" data-line="${i + 1}">${line || ' '}</div>`)
+        .join('')
     } else if (highlightedRef.current) {
       highlightedRef.current.innerHTML = ''
     }
@@ -168,15 +209,43 @@ export const CodeEditor = ({ language, onChange, value, readOnly = false }) => {
     setShowAutocomplete(false)
   }
   
+  // Эффект для синхронизации высоты номеров строк
+  useEffect(() => {
+    const syncHeights = () => {
+      if (!highlightedRef.current || !lineNumbersRef.current) return
+      
+      const codeLines = highlightedRef.current.querySelectorAll('.code-line')
+      const numberContainers = lineNumbersRef.current.querySelectorAll('.line-number-wrapper')
+      
+      codeLines.forEach((line, index) => {
+        if (numberContainers[index]) {
+          const height = line.getBoundingClientRect().height
+          numberContainers[index].style.height = `${height}px`
+        }
+      })
+    }
+
+    // Запускаем синхронизацию после рендеринга и при изменении размера окна
+    const timeoutId = setTimeout(syncHeights, 0)
+    window.addEventListener('resize', syncHeights)
+    
+    return () => {
+      clearTimeout(timeoutId)
+      window.removeEventListener('resize', syncHeights)
+    }
+  }, [value, language])
+
   return (
     <div className="code-editor">
       <div className="editor-wrapper">
         <div className="line-numbers" ref={lineNumbersRef}>
           {lineNumbers.map(num => (
-            <div key={num} className="line-number">{num}</div>
+            <div key={num} className="line-number-wrapper">
+              <div className="line-number">{num}</div>
+            </div>
           ))}
         </div>
-        <pre className="editor-highlight" ref={highlightedRef}></pre>
+        <div className="editor-highlight" ref={highlightedRef}></div>
         <textarea
           ref={textareaRef}
           className="editor-textarea"
@@ -187,6 +256,7 @@ export const CodeEditor = ({ language, onChange, value, readOnly = false }) => {
           readOnly={readOnly}
           placeholder=""
           spellCheck="false"
+          wrap="soft"
         />
         {showAutocomplete && suggestions.length > 0 && (
           <div className="autocomplete-menu">
