@@ -32,6 +32,7 @@ import {
   memGetCourses, memGetCourseById, memSaveCourse, memDeleteCourse,
   memGetParagraphs, memSaveParagraph, memDeleteParagraph,
   memGetChapters, memSaveChapter, memDeleteChapter,
+  memExportCourse, memApplyCourseImportChanges,
 } from './memoryDb'
 
 // Firestore и auth импортируются статически, но используются только при IS_TEST_MODE === false.
@@ -214,6 +215,77 @@ export const deleteTag = async (id) => {
     console.error('Error deleting tag:', error)
     throw error
   }
+}
+
+// ─── EDU: COURSE EXPORT / IMPORT ─────────────────────────────────────────────
+
+export const exportCourse = async (courseId) => {
+  if (IS_TEST_MODE) return memExportCourse(courseId)
+  if (!auth.currentUser) throw new Error('Unauthorized')
+
+  const courseSnap = await getDoc(doc(db, COURSES_COLLECTION, courseId))
+  if (!courseSnap.exists()) throw new Error('Course not found')
+  const course = { id: courseSnap.id, ...courseSnap.data() }
+
+  const parasSnap = await getDocs(collection(db, COURSES_COLLECTION, courseId, 'paragraphs'))
+  const paragraphs = []
+  for (const pd of parasSnap.docs) {
+    const para = { id: pd.id, ...pd.data() }
+    const chapsSnap = await getDocs(
+      collection(db, COURSES_COLLECTION, courseId, 'paragraphs', pd.id, 'chapters')
+    )
+    para.chapters = chapsSnap.docs.map((cd) => ({ id: cd.id, ...cd.data() }))
+    para.chapters.sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+    paragraphs.push(para)
+  }
+  paragraphs.sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+
+  return JSON.stringify({ version: 1, exportedAt: new Date().toISOString(), course, paragraphs }, null, 2)
+}
+
+export const applyCourseImportChanges = async (courseId, acceptedChanges) => {
+  if (IS_TEST_MODE) return memApplyCourseImportChanges(courseId, acceptedChanges)
+  if (!auth.currentUser) throw new Error('Unauthorized')
+
+  for (const change of acceptedChanges) {
+    if (change.type === 'course-field') {
+      const courseRef = doc(db, COURSES_COLLECTION, courseId)
+      const snap = await getDoc(courseRef)
+      const current = snap.exists() ? snap.data() : {}
+      await setDoc(courseRef, { ...current, [change.field]: change.newVal, updatedAt: new Date().toISOString() })
+    } else if (change.type === 'paragraph-add') {
+      const pId = `para_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`
+      const { chapters, ...paraFields } = change.paragraphData
+      await setDoc(
+        doc(db, COURSES_COLLECTION, courseId, 'paragraphs', pId),
+        { ...paraFields, id: pId, updatedAt: new Date().toISOString() }
+      )
+      for (const chap of (chapters || [])) {
+        const cId = `chap_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`
+        await setDoc(
+          doc(db, COURSES_COLLECTION, courseId, 'paragraphs', pId, 'chapters', cId),
+          { ...chap, id: cId, updatedAt: new Date().toISOString() }
+        )
+      }
+    } else if (change.type === 'paragraph-modify') {
+      await setDoc(
+        doc(db, COURSES_COLLECTION, courseId, 'paragraphs', change.paragraphId),
+        { ...change.paragraphData, updatedAt: new Date().toISOString() }
+      )
+    } else if (change.type === 'chapter-add') {
+      const cId = `chap_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`
+      await setDoc(
+        doc(db, COURSES_COLLECTION, courseId, 'paragraphs', change.paragraphId, 'chapters', cId),
+        { ...change.chapterData, id: cId, updatedAt: new Date().toISOString() }
+      )
+    } else if (change.type === 'chapter-modify') {
+      await setDoc(
+        doc(db, COURSES_COLLECTION, courseId, 'paragraphs', change.paragraphId, 'chapters', change.chapterId),
+        { ...change.chapterData, updatedAt: new Date().toISOString() }
+      )
+    }
+  }
+  return { success: true }
 }
 
 // ─── EDU: COURSES ─────────────────────────────────────────────────────────────

@@ -151,6 +151,71 @@ export const memImportProblemsResolved = async (incoming, existing, resolutions)
   return { imported, skipped }
 }
 
+// ─── Course Export / Import ───────────────────────────────────────────────────
+
+export const memExportCourse = async (courseId) => {
+  requireAuth()
+  const course = store.courses.get(courseId)
+  if (!course) throw new Error('Course not found')
+
+  const parasMap = store.paragraphs.get(courseId) || new Map()
+  const paragraphs = Array.from(parasMap.values())
+  paragraphs.sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+
+  for (const para of paragraphs) {
+    const key = `${courseId}/${para.id}`
+    const chapsMap = store.chapters.get(key) || new Map()
+    const chapters = Array.from(chapsMap.values())
+    chapters.sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+    para.chapters = chapters
+  }
+
+  return JSON.stringify({ version: 1, exportedAt: new Date().toISOString(), course, paragraphs }, null, 2)
+}
+
+export const memApplyCourseImportChanges = async (courseId, acceptedChanges) => {
+  requireAuth()
+
+  for (const change of acceptedChanges) {
+    if (change.type === 'course-field') {
+      const current = store.courses.get(courseId) || {}
+      store.courses.set(courseId, { ...current, [change.field]: change.newVal, updatedAt: new Date().toISOString() })
+    } else if (change.type === 'paragraph-add') {
+      if (!store.paragraphs.has(courseId)) store.paragraphs.set(courseId, new Map())
+      const pId = genId('para')
+      const { chapters, ...paraFields } = change.paragraphData
+      store.paragraphs.get(courseId).set(pId, { ...paraFields, id: pId, updatedAt: new Date().toISOString() })
+      if (chapters?.length) {
+        const key = `${courseId}/${pId}`
+        store.chapters.set(key, new Map())
+        for (const chap of chapters) {
+          const cId = genId('chap')
+          store.chapters.get(key).set(cId, { ...chap, id: cId, updatedAt: new Date().toISOString() })
+        }
+      }
+    } else if (change.type === 'paragraph-modify') {
+      if (!store.paragraphs.has(courseId)) store.paragraphs.set(courseId, new Map())
+      store.paragraphs.get(courseId).set(
+        change.paragraphId,
+        { ...change.paragraphData, updatedAt: new Date().toISOString() }
+      )
+    } else if (change.type === 'chapter-add') {
+      const key = `${courseId}/${change.paragraphId}`
+      if (!store.chapters.has(key)) store.chapters.set(key, new Map())
+      const cId = genId('chap')
+      store.chapters.get(key).set(cId, { ...change.chapterData, id: cId, updatedAt: new Date().toISOString() })
+    } else if (change.type === 'chapter-modify') {
+      const key = `${courseId}/${change.paragraphId}`
+      if (!store.chapters.has(key)) store.chapters.set(key, new Map())
+      store.chapters.get(key).set(
+        change.chapterId,
+        { ...change.chapterData, updatedAt: new Date().toISOString() }
+      )
+    }
+  }
+  return { success: true }
+}
+
 // ─── Courses ──────────────────────────────────────────────────────────────────
 
 export const memGetCourses = async () => {

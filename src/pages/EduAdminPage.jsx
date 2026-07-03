@@ -1,18 +1,42 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import {
   getCourses, saveCourse, deleteCourse,
   getParagraphs, saveParagraph, deleteParagraph,
   getChapters, saveChapter, deleteChapter,
   getProblems,
+  exportCourse, applyCourseImportChanges,
 } from '../utils/storage'
 import Icon from '../components/Icon'
 import Modal from '../components/common/Modal'
 import MarkdownRenderer from '../components/MarkdownRenderer'
+import CourseImportModal, { generateCourseChanges } from '../components/admin/CourseImportModal'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const generateAccessKey = () =>
   Math.random().toString(36).slice(2, 10) + '-' + Math.random().toString(36).slice(2, 10)
+
+function downloadJson(json, filename) {
+  const blob = new Blob([json], { type: 'application/json' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
+function parseImportFile(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      try { resolve(JSON.parse(e.target.result)) }
+      catch { reject(new Error('Неверный формат JSON')) }
+    }
+    reader.onerror = () => reject(new Error('Ошибка чтения файла'))
+    reader.readAsText(file)
+  })
+}
 
 // ─── Chapter Editor ───────────────────────────────────────────────────────────
 
@@ -276,9 +300,15 @@ function CourseEditor({ course, allProblems, onClose, onSaved }) {
   const [showParagraphForm, setShowParagraphForm] = useState(false)
   const [editingParagraph, setEditingParagraph] = useState(null)
 
+  // Import state
+  const [importChanges, setImportChanges] = useState(null)
+  const [showImportModal, setShowImportModal] = useState(false)
+  const [importing, setImporting] = useState(false)
+  const importFileRef = useRef(null)
+
   useEffect(() => {
     if (course?.id) {
-      getParagraphs(course.id).then(setParagraphs)
+      loadParagraphsWithChapters()
     }
   }, [course])
 
@@ -287,6 +317,19 @@ function CourseEditor({ course, allProblems, onClose, onSaved }) {
       const paras = await getParagraphs(course.id)
       setParagraphs(paras)
     }
+  }
+
+  // Load paragraphs including chapters (needed for diff generation)
+  const loadParagraphsWithChapters = async () => {
+    if (!course?.id) return
+    const paras = await getParagraphs(course.id)
+    const parasWithChapters = await Promise.all(
+      paras.map(async (para) => {
+        const chapters = await getChapters(course.id, para.id)
+        return { ...para, _chapters: chapters }
+      })
+    )
+    setParagraphs(parasWithChapters)
   }
 
   const handleSaveCourse = async () => {
@@ -313,7 +356,71 @@ function CourseEditor({ course, allProblems, onClose, onSaved }) {
     if (!course?.id) return
     if (confirm('Удалить параграф?')) {
       await deleteParagraph(course.id, paraId)
-      await loadParagraphs()
+      await loadParagraphsWithChapters()
+    }
+  }
+
+  // ── Import into existing course ──────────────────────────────────────────────
+  const handleImportClick = () => {
+    if (!course?.id) {
+      alert('Сначала сохраните курс, затем используйте импорт.')
+      return
+    }
+    importFileRef.current?.click()
+  }
+
+  const handleImportFileChange = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    e.target.value = ''
+
+    try {
+      const data = await parseImportFile(file)
+      if (!data.course || !data.paragraphs) {
+        alert('Неверный формат файла курса.')
+        return
+      }
+
+      // Build current course object from local state (fields may differ from saved)
+      const currentCourse = { ...(course || {}), title, description, content, isPrivate }
+
+      const changes = generateCourseChanges(currentCourse, paragraphs, data)
+      setImportChanges(changes)
+      setShowImportModal(true)
+    } catch (err) {
+      alert(`Ошибка импорта: ${err.message}`)
+    }
+  }
+
+  const handleApplyImport = async (acceptedChanges) => {
+    setShowImportModal(false)
+    if (acceptedChanges.length === 0) return
+
+    setImporting(true)
+    try {
+      // Apply course-field changes locally (they affect current editor state)
+      for (const ch of acceptedChanges) {
+        if (ch.type === 'course-field') {
+          if (ch.field === 'title') setTitle(ch.newVal)
+          if (ch.field === 'description') setDescription(ch.newVal)
+          if (ch.field === 'content') setContent(ch.newVal)
+          if (ch.field === 'isPrivate') setIsPrivate(ch.newVal)
+        }
+      }
+
+      // Apply structural changes via storage
+      const structuralChanges = acceptedChanges.filter((c) => c.type !== 'course-field')
+      if (structuralChanges.length > 0) {
+        await applyCourseImportChanges(course.id, structuralChanges)
+        await loadParagraphsWithChapters()
+      }
+
+      alert(`Импорт применён: ${acceptedChanges.length} изменений.`)
+    } catch (err) {
+      alert(`Ошибка при применении изменений: ${err.message}`)
+    } finally {
+      setImporting(false)
+      setImportChanges(null)
     }
   }
 
@@ -386,13 +493,24 @@ function CourseEditor({ course, allProblems, onClose, onSaved }) {
         <div className="form-group">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.6rem' }}>
             <label>Параграфы</label>
-            <button
-              className="btn btn-secondary"
-              style={{ padding: '0.3rem 0.8rem', fontSize: '0.8rem', minWidth: 'auto' }}
-              onClick={() => { setEditingParagraph(null); setShowParagraphForm(true) }}
-            >
-              <Icon name="plus" size={14} /> Добавить параграф
-            </button>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <button
+                className="btn btn-secondary"
+                style={{ padding: '0.3rem 0.8rem', fontSize: '0.8rem', minWidth: 'auto' }}
+                onClick={handleImportClick}
+                disabled={importing}
+                title="Импортировать параграфы/главы из файла курса"
+              >
+                <Icon name="upload" size={14} /> Импорт
+              </button>
+              <button
+                className="btn btn-secondary"
+                style={{ padding: '0.3rem 0.8rem', fontSize: '0.8rem', minWidth: 'auto' }}
+                onClick={() => { setEditingParagraph(null); setShowParagraphForm(true) }}
+              >
+                <Icon name="plus" size={14} /> Добавить параграф
+              </button>
+            </div>
           </div>
           <div className="edu-items-list">
             {paragraphs.map((para) => (
@@ -417,6 +535,15 @@ function CourseEditor({ course, allProblems, onClose, onSaved }) {
         <button className="btn btn-primary" onClick={handleSaveCourse}>Сохранить курс</button>
       </div>
 
+      {/* Hidden file input for import */}
+      <input
+        ref={importFileRef}
+        type="file"
+        accept=".json"
+        style={{ display: 'none' }}
+        onChange={handleImportFileChange}
+      />
+
       {course?.id && (
         <Modal
           isOpen={showParagraphForm}
@@ -429,9 +556,18 @@ function CourseEditor({ course, allProblems, onClose, onSaved }) {
             paragraph={editingParagraph}
             allProblems={allProblems}
             onClose={() => setShowParagraphForm(false)}
-            onSaved={loadParagraphs}
+            onSaved={loadParagraphsWithChapters}
           />
         </Modal>
+      )}
+
+      {importChanges !== null && (
+        <CourseImportModal
+          isOpen={showImportModal}
+          changes={importChanges}
+          onApply={handleApplyImport}
+          onCancel={() => { setShowImportModal(false); setImportChanges(null) }}
+        />
       )}
     </div>
   )
@@ -444,6 +580,8 @@ function EduAdminPage({ onLogout }) {
   const [allProblems, setAllProblems] = useState([])
   const [showCourseForm, setShowCourseForm] = useState(false)
   const [editingCourse, setEditingCourse] = useState(null)
+  const [exportingId, setExportingId] = useState(null)
+  const globalImportRef = useRef(null)
 
   const loadData = async () => {
     const [c, p] = await Promise.all([getCourses(), getProblems()])
@@ -460,12 +598,90 @@ function EduAdminPage({ onLogout }) {
     }
   }
 
+  // ── Export course ────────────────────────────────────────────────────────────
+  const handleExportCourse = async (course) => {
+    setExportingId(course.id)
+    try {
+      const json = await exportCourse(course.id)
+      const slug = course.title.replace(/[^a-zа-яё0-9]/gi, '_').slice(0, 40)
+      downloadJson(json, `course_${slug}.json`)
+    } catch (err) {
+      alert(`Ошибка экспорта: ${err.message}`)
+    } finally {
+      setExportingId(null)
+    }
+  }
+
+  // ── Global import (new course from file) ─────────────────────────────────────
+  const handleGlobalImportClick = () => {
+    globalImportRef.current?.click()
+  }
+
+  const handleGlobalImportFile = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    e.target.value = ''
+
+    try {
+      const data = await parseImportFile(file)
+      if (!data.course || !data.paragraphs) {
+        alert('Неверный формат файла курса.')
+        return
+      }
+
+      // Find existing course by title
+      const existing = courses.find(
+        (c) => c.title?.toLowerCase() === data.course.title?.toLowerCase()
+      )
+
+      if (existing) {
+        if (!confirm(`Курс «${data.course.title}» уже существует. Открыть его в режиме редактирования с предпросмотром изменений?`)) return
+        setEditingCourse(existing)
+        setShowCourseForm(true)
+        // After the editor opens, user can click Import inside it
+        return
+      }
+
+      // New course: create it then import paragraphs/chapters
+      if (!confirm(`Создать новый курс «${data.course.title}» и импортировать ${data.paragraphs.length} параграфов?`)) return
+
+      const saved = await saveCourse({
+        title: data.course.title,
+        description: data.course.description || '',
+        content: data.course.content || '',
+        isPrivate: data.course.isPrivate || false,
+        accessKeys: data.course.accessKeys || [],
+      })
+
+      const newCourseId = saved.id
+      const allChanges = data.paragraphs.map((para) => ({
+        id: `imp_${Math.random().toString(36).slice(2)}`,
+        type: 'paragraph-add',
+        paragraphData: para,
+        chaptersData: para.chapters || [],
+      }))
+
+      await applyCourseImportChanges(newCourseId, allChanges)
+      await loadData()
+      alert(`Курс «${data.course.title}» успешно импортирован.`)
+    } catch (err) {
+      alert(`Ошибка импорта: ${err.message}`)
+    }
+  }
+
   return (
     <div>
       <div className="admin-header">
         <h1>Управление учебником</h1>
         <div className="admin-actions-group">
           <div className="admin-actions-main">
+            <button
+              className="btn btn-secondary"
+              onClick={handleGlobalImportClick}
+              title="Импортировать курс из файла JSON"
+            >
+              <Icon name="upload" size={16} /> Импорт курса
+            </button>
             <button
               className="btn btn-primary"
               onClick={() => { setEditingCourse(null); setShowCourseForm(true) }}
@@ -478,6 +694,14 @@ function EduAdminPage({ onLogout }) {
           </button>
         </div>
       </div>
+
+      <input
+        ref={globalImportRef}
+        type="file"
+        accept=".json"
+        style={{ display: 'none' }}
+        onChange={handleGlobalImportFile}
+      />
 
       <div className="admin-problems-list">
         {courses.length === 0 && (
@@ -499,6 +723,17 @@ function EduAdminPage({ onLogout }) {
               {c.description && <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: '0.2rem 0 0' }}>{c.description}</p>}
             </div>
             <div className="p-actions">
+              <button
+                className="btn-icon"
+                title="Экспортировать курс"
+                onClick={() => handleExportCourse(c)}
+                disabled={exportingId === c.id}
+              >
+                {exportingId === c.id
+                  ? <Icon name="loader" size={16} />
+                  : <Icon name="download" size={16} />
+                }
+              </button>
               <button
                 className="btn-icon"
                 title="Редактировать"
