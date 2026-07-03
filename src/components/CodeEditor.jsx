@@ -81,7 +81,7 @@ export const CodeEditor = ({ language, onChange, value, readOnly = false }) => {
     return lines
   }
 
-  // Обновление подсветки кода
+  // Обновление подсветки кода и высоты
   useEffect(() => {
     if (highlightedRef.current && value) {
       const highlighted = hljs.highlight(value, {
@@ -95,6 +95,12 @@ export const CodeEditor = ({ language, onChange, value, readOnly = false }) => {
         .join('')
     } else if (highlightedRef.current) {
       highlightedRef.current.innerHTML = ''
+    }
+
+    // Adjust height on value change (initial load or external change)
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto'
+      textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`
     }
   }, [value, language])
   
@@ -164,8 +170,14 @@ export const CodeEditor = ({ language, onChange, value, readOnly = false }) => {
     const newValue = e.target.value
     onChange(newValue)
     
-    // Get current word for autocomplete
+    // Auto-resize textarea
     const textarea = textareaRef.current
+    if (textarea) {
+      textarea.style.height = 'auto'
+      textarea.style.height = `${textarea.scrollHeight}px`
+    }
+    
+    // Get current word for autocomplete
     const start = textarea.selectionStart
     const lastNewline = newValue.lastIndexOf('\n', start - 1)
     const lineStart = lastNewline + 1

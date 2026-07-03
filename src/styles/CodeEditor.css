@@ -103,14 +103,14 @@
   font-family: 'Courier New', 'Monaco', monospace;
   font-size: 14px;
   line-height: 1.5;
-  resize: vertical;
+  resize: none;
   background: transparent;
   color: transparent;
   tab-size: 2;
   -moz-tab-size: 2;
   z-index: 2;
   caret-color: var(--text-primary);
-  overflow-y: scroll;
+  overflow: hidden;
   white-space: pre-wrap;
   word-wrap: break-word;
   word-break: normal;
