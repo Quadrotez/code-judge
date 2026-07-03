@@ -1102,3 +1102,215 @@ body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Ro
 .btn.btn-danger:hover {
   background: #dc2626;
 }
+
+
+/* ─── SANDBOX PAGE ───────────────────────────────────────────────────────── */
+.sandbox-page { padding-top: 1rem; }
+
+.sandbox-header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.sandbox-header h1 {
+  font-size: 2rem;
+  margin-bottom: 0.5rem;
+  color: var(--primary);
+}
+
+.sandbox-header p {
+  color: var(--text-secondary);
+  font-size: 1rem;
+}
+
+.sandbox-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+  align-items: start;
+}
+
+@media (max-width: 1200px) {
+  .sandbox-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.sandbox-editor-section {
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  min-height: 600px;
+}
+
+.sandbox-editor-section .editor-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  gap: 1rem;
+}
+
+.sandbox-editor-section .editor-header h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.sandbox-editor-section .lang-select {
+  min-width: 150px;
+}
+
+.sandbox-editor-section .code-editor {
+  flex: 1;
+  min-height: 400px;
+}
+
+.sandbox-io-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.io-block {
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.io-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.io-header h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.execution-time {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.io-textarea {
+  width: 100%;
+  min-height: 120px;
+  padding: 0.8rem 1rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  font-family: 'Fira Code', 'Courier New', monospace;
+  outline: none;
+  transition: border-color 0.2s;
+  resize: vertical;
+}
+
+.io-textarea:focus {
+  border-color: var(--primary);
+}
+
+.io-output {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1rem;
+  min-height: 120px;
+  max-height: 300px;
+  overflow-y: auto;
+  font-family: 'Fira Code', 'Courier New', monospace;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.io-output pre {
+  margin: 0;
+  color: var(--text-primary);
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+.io-output .placeholder {
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+.error-block {
+  border-left: 4px solid var(--danger);
+}
+
+.error-output {
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.error-output pre {
+  color: var(--danger);
+}
+
+.sandbox-controls {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.sandbox-controls .btn {
+  flex: 1;
+  min-width: 140px;
+  justify-content: center;
+}
+
+.sandbox-controls .btn-primary {
+  background: var(--primary);
+  color: white;
+}
+
+.sandbox-controls .btn-primary:hover:not(:disabled) {
+  background: #16a34a;
+}
+
+.sandbox-controls .btn-secondary {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+}
+
+.sandbox-controls .btn-secondary:hover:not(:disabled) {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.sandbox-controls .btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* Scrollbar styling for output areas */
+.io-output::-webkit-scrollbar {
+  width: 8px;
+}
+
+.io-output::-webkit-scrollbar-track {
+  background: var(--bg-primary);
+  border-radius: 4px;
+}
+
+.io-output::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
+}
+
+.io-output::-webkit-scrollbar-thumb:hover {
+  background: var(--text-secondary);
+}

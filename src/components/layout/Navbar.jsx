@@ -22,6 +22,7 @@ const Navbar = ({ isDarkMode, setIsDarkMode }) => {
       <div className="nav-links">
         <Link to="/">Задачи</Link>
         <Link to="/education">Учебник</Link>
+        <Link to="/sandbox">Песочница</Link>
         {isLogged && <Link to="/admin">Админ</Link>}
         <button
           className="theme-toggle"

@@ -9,6 +9,7 @@ import CoursePage from './pages/CoursePage'
 import ParagraphPage from './pages/ParagraphPage'
 import ChapterPage from './pages/ChapterPage'
 import CourseAccessPage from './pages/CourseAccessPage'
+import SandboxPage from './pages/SandboxPage'
 import './styles/App.css'
 
 export default function App() {
@@ -32,6 +33,7 @@ export default function App() {
           <Route path="/education/:courseId" element={<CoursePage />} />
           <Route path="/education/:courseId/paragraph/:paragraphId" element={<ParagraphPage />} />
           <Route path="/education/:courseId/paragraph/:paragraphId/chapter/:chapterId" element={<ChapterPage />} />
+          <Route path="/sandbox" element={<SandboxPage />} />
         </Routes>
       </div>
     </Router>
