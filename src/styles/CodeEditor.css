@@ -72,7 +72,7 @@
   line-height: 1.5;
   background: transparent;
   color: inherit;
-  white-space: pre-wrap;
+  white-space: break-spaces;
   word-wrap: break-word;
   word-break: normal;
   overflow: hidden;
@@ -84,7 +84,7 @@
 
 .code-line {
   min-height: 1.5em;
-  white-space: pre-wrap;
+  white-space: break-spaces;
   word-wrap: break-word;
   word-break: normal;
 }
@@ -111,7 +111,7 @@
   z-index: 2;
   caret-color: var(--text-primary);
   overflow: hidden;
-  white-space: pre-wrap;
+  white-space: break-spaces;
   word-wrap: break-word;
   word-break: normal;
 }
