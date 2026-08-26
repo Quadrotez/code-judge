@@ -1,5 +1,8 @@
 /* styles/CodeEditor.css */
 .code-editor {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
   border: 1px solid var(--border);
   border-radius: 8px;
   overflow: hidden;
@@ -27,10 +30,14 @@
 .editor-wrapper {
   position: relative;
   display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  align-items: stretch;
   overflow: hidden;
 }
 
 .line-numbers {
+  align-self: stretch;
   width: 40px;
   background: var(--bg-secondary);
   border-right: 1px solid var(--border);
