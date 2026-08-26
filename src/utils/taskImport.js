@@ -5,10 +5,100 @@ const DIFFICULTY_LABELS = {
   olympiad: 'олимпиадная',
 }
 
-const stripJsonCodeFence = (value) => {
-  const text = String(value || '').trim()
-  const fenced = text.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i)
-  return fenced ? fenced[1].trim() : text
+const JSON_ESCAPE_CHARS = '"\\/bfnrt'
+
+const extractJsonCandidate = (value) => {
+  const text = String(value || '').replace(/^\uFEFF/, '').trim()
+  if (!text) return text
+
+  const fenced = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/i)
+  if (fenced) return fenced[1].trim()
+
+  const objectStart = text.indexOf('{')
+  const arrayStart = text.indexOf('[')
+  const starts = [objectStart, arrayStart].filter((index) => index >= 0)
+  if (starts.length === 0) return text
+
+  const start = Math.min(...starts)
+  const objectEnd = text.lastIndexOf('}')
+  const arrayEnd = text.lastIndexOf(']')
+  const end = Math.max(objectEnd, arrayEnd)
+
+  return end > start ? text.slice(start, end + 1).trim() : text
+}
+
+// Нейросети часто вставляют LaTeX-команды прямо в JSON-строки: например, "\\le".
+// В JSON обратный слэш перед неизвестной последовательностью нужно экранировать.
+const repairJsonStrings = (value) => {
+  let repaired = ''
+  let inString = false
+
+  for (let index = 0; index < value.length; index += 1) {
+    const char = value[index]
+
+    if (!inString) {
+      repaired += char
+      if (char === '"') inString = true
+      continue
+    }
+
+    if (char === '"') {
+      repaired += char
+      inString = false
+      continue
+    }
+
+    if (char === '\\') {
+      const next = value[index + 1]
+      const unicodeDigits = value.slice(index + 2, index + 6)
+
+      if (JSON_ESCAPE_CHARS.includes(next)) {
+        repaired += char + next
+        index += 1
+        continue
+      }
+
+      if (next === 'u' && /^[0-9a-f]{4}$/i.test(unicodeDigits)) {
+        repaired += value.slice(index, index + 6)
+        index += 5
+        continue
+      }
+
+      repaired += '\\\\'
+      continue
+    }
+
+    if (char === '\n') {
+      repaired += '\\n'
+      continue
+    }
+
+    if (char === '\r') {
+      if (value[index + 1] === '\n') index += 1
+      repaired += '\\n'
+      continue
+    }
+
+    repaired += char
+  }
+
+  return repaired
+}
+
+const parseImportedJson = (value) => {
+  const candidate = extractJsonCandidate(value)
+
+  try {
+    return JSON.parse(candidate)
+  } catch (initialError) {
+    try {
+      return JSON.parse(repairJsonStrings(candidate))
+    } catch {
+      const position = initialError.message.match(/position (\d+)/i)?.[1]
+      const suffix = position ? ` Ошибка обнаружена около символа ${position}.` : ''
+      throw new Error(`Не удалось разобрать JSON.${suffix} Убедитесь, что ответ содержит один объект задачи.`)
+    }
+  }
 }
 
 const asText = (value, fieldName, { required = false } = {}) => {
@@ -37,7 +127,7 @@ export const createTaskPrompt = ({ topic, description, difficulty }) => {
 - Желаемая сложность: ${selectedDifficulty}.
 - Дополнительное описание идеи или ограничений: ${inputDescription}.
 - Задача должна иметь однозначное решение, реалистичные ограничения и тесты, проверяющие граничные случаи.
-- Условие, формат ввода и формат вывода пиши на русском языке в Markdown. Формулы можно записывать в LaTeX.
+- Условие, формат ввода и формат вывода пиши на русском языке в Markdown. Формулы можно записывать в LaTeX.\n- Для валидности JSON каждый перевод строки внутри значения поля кодируй как последовательность \\n, а обратные слэши в LaTeX должны быть экранированы.
 - Не добавляй решение, объяснение алгоритма или подсказки.
 - Верни только валидный JSON без Markdown-обёртки, комментариев и дополнительного текста.
 
@@ -85,11 +175,7 @@ export const normalizeImportedTask = (value) => {
   let parsed = value
 
   if (typeof value === 'string') {
-    try {
-      parsed = JSON.parse(stripJsonCodeFence(value))
-    } catch {
-      throw new Error('Не удалось разобрать JSON. Вставьте объект задачи без лишнего текста.')
-    }
+    parsed = parseImportedJson(value)
   }
 
   if (Array.isArray(parsed)) {
