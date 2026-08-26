@@ -1427,3 +1427,290 @@ body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Ro
 .io-output::-webkit-scrollbar-thumb:hover {
   background: var(--text-secondary);
 }
+
+
+/* ─── SANDBOX TASK IMPORT ─────────────────────────────────────────────────── */
+.sandbox-layout {
+  grid-template-columns: minmax(260px, 0.85fr) minmax(0, 1.15fr) minmax(280px, 0.9fr);
+  align-items: start;
+}
+
+.sandbox-import-panel,
+.sandbox-task-preview {
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.25rem;
+  min-width: 0;
+}
+
+.sandbox-import-panel {
+  position: sticky;
+  top: 1rem;
+}
+
+.sandbox-panel-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.sandbox-panel-heading h2 {
+  margin: 0.2rem 0 0;
+  font-size: 1.1rem;
+  line-height: 1.3;
+}
+
+.sandbox-eyebrow {
+  color: var(--primary);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.sandbox-panel-description,
+.sandbox-run-info p {
+  color: var(--text-secondary);
+  font-size: 0.88rem;
+  line-height: 1.55;
+  margin: 1rem 0;
+}
+
+.sandbox-full-button {
+  width: 100%;
+  justify-content: center;
+}
+
+.sandbox-prompt-form,
+.sandbox-json-import,
+.sandbox-prompt-output {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+  margin-top: 1rem;
+}
+
+.sandbox-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  color: var(--text-primary);
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.sandbox-field .form-input,
+.sandbox-field .form-textarea {
+  width: 100%;
+}
+
+.sandbox-subheading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.sandbox-muted {
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  font-weight: 400;
+}
+
+.sandbox-prompt-textarea {
+  width: 100%;
+  resize: vertical;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.75rem;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-family: 'Fira Code', 'Courier New', monospace;
+  font-size: 0.76rem;
+  line-height: 1.45;
+}
+
+.sandbox-prompt-textarea:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+.sandbox-json-textarea {
+  min-height: 150px;
+}
+
+.sandbox-message {
+  margin-top: 1rem;
+  padding: 0.75rem 0.85rem;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.sandbox-message.success {
+  background: rgba(34, 197, 94, 0.12);
+  color: var(--success);
+}
+
+.sandbox-message.warning {
+  background: rgba(245, 158, 11, 0.14);
+  color: var(--warning);
+}
+
+.sandbox-message.error {
+  background: rgba(239, 68, 68, 0.12);
+  color: var(--danger);
+}
+
+.sandbox-task-preview {
+  margin-top: 1rem;
+}
+
+.sandbox-task-preview .sandbox-panel-heading h2 {
+  font-size: 1rem;
+}
+
+.sandbox-task-tags {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0.8rem 0 1rem;
+}
+
+.sandbox-task-source {
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+}
+
+.sandbox-task-markdown,
+.sandbox-task-format {
+  font-size: 0.86rem;
+  overflow-wrap: anywhere;
+}
+
+.sandbox-task-markdown {
+  border-top: 1px solid var(--border);
+  padding-top: 0.9rem;
+}
+
+.sandbox-task-format {
+  border-top: 1px solid var(--border);
+  margin-top: 1rem;
+  padding-top: 0.85rem;
+}
+
+.sandbox-task-format h3,
+.sandbox-task-examples h3 {
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  margin: 0 0 0.55rem;
+}
+
+.sandbox-task-examples {
+  border-top: 1px solid var(--border);
+  margin-top: 1rem;
+  padding-top: 0.85rem;
+}
+
+.sandbox-example {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+  margin-top: 0.6rem;
+}
+
+.sandbox-example > div {
+  min-width: 0;
+}
+
+.sandbox-example span {
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+}
+
+.sandbox-example pre {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-family: 'Fira Code', 'Courier New', monospace;
+  font-size: 0.72rem;
+  margin: 0.25rem 0 0;
+  max-height: 110px;
+  overflow: auto;
+  padding: 0.55rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.sandbox-active-task {
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  margin: -0.35rem 0 0.8rem;
+}
+
+.sandbox-run-info {
+  gap: 0;
+}
+
+.sandbox-run-info .btn {
+  align-self: flex-start;
+  margin-top: 0.85rem;
+}
+
+.sandbox-import-panel .btn-icon,
+.sandbox-task-preview .btn-icon {
+  color: var(--text-secondary);
+}
+
+.sandbox-import-panel .btn-icon:hover,
+.sandbox-task-preview .btn-icon:hover {
+  color: var(--primary);
+}
+
+@media (max-width: 1200px) {
+  .sandbox-layout {
+    grid-template-columns: minmax(240px, 0.8fr) minmax(0, 1.2fr);
+  }
+
+  .sandbox-import-panel {
+    grid-column: 1 / -1;
+    position: static;
+  }
+
+  .sandbox-import-panel:not(:has(.sandbox-task-preview)) {
+    display: grid;
+    grid-template-columns: minmax(220px, 0.8fr) minmax(0, 1.2fr);
+    gap: 0 1.25rem;
+  }
+
+  .sandbox-import-panel:not(:has(.sandbox-task-preview)) > .sandbox-panel-heading,
+  .sandbox-import-panel:not(:has(.sandbox-task-preview)) > .sandbox-panel-description,
+  .sandbox-import-panel:not(:has(.sandbox-task-preview)) > .sandbox-message {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 760px) {
+  .sandbox-layout,
+  .sandbox-import-panel:not(:has(.sandbox-task-preview)) {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .sandbox-import-panel,
+  .sandbox-task-preview,
+  .sandbox-editor-section,
+  .io-block {
+    padding: 1rem;
+  }
+
+  .sandbox-example {
+    grid-template-columns: 1fr;
+  }
+}
