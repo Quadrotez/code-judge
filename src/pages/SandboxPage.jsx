@@ -32,6 +32,7 @@ const normalizeSiteTask = (problem, sourceLabel) => ({
 
 function TaskPreview({ task, onClear }) {
   const openTests = task.tests.filter((test) => !test.isHidden)
+  const solutionLanguages = Object.keys(task.solutions || {})
 
   return (
     <section className="sandbox-task-preview">
@@ -82,6 +83,21 @@ function TaskPreview({ task, onClear }) {
                 <pre>{test.output}</pre>
               </div>
             </div>
+          ))}
+        </div>
+      )}
+
+      {solutionLanguages.length > 0 && (
+        <div className="sandbox-imported-solutions">
+          <h3>Решения из JSON</h3>
+          <p className="sandbox-muted">Импорт сохранён. Решения отображаются отдельно и не подменяют код в редакторе.</p>
+          {solutionLanguages.map((language) => (
+            <details key={language} className="sandbox-imported-solution">
+              <summary>{language === 'cpp' ? 'C++17' : language}</summary>
+              <div className="markdown-body">
+                <MarkdownRenderer text={task.solutions[language]} />
+              </div>
+            </details>
           ))}
         </div>
       )}

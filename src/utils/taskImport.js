@@ -116,6 +116,22 @@ const asText = (value, fieldName, { required = false } = {}) => {
   return text
 }
 
+const normalizeSolutions = (value) => {
+  if (value === undefined || value === null) return {}
+  if (typeof value !== 'object' || Array.isArray(value)) {
+    throw new Error('Поле «solutions» должно быть объектом вида {"python": "...", "cpp": "..."}')
+  }
+
+  const solutions = {}
+  for (const [language, code] of Object.entries(value)) {
+    const normalizedLanguage = String(language || '').trim().toLowerCase()
+    if (!normalizedLanguage) continue
+    const normalizedCode = asText(code, `solutions.${normalizedLanguage}`)
+    if (normalizedCode) solutions[normalizedLanguage] = normalizedCode
+  }
+  return solutions
+}
+
 export const createTaskPrompt = ({ topic, description, difficulty }) => {
   const selectedDifficulty = DIFFICULTY_LABELS[difficulty] || DIFFICULTY_LABELS.medium
   const inputTopic = String(topic || '').trim()
@@ -132,7 +148,7 @@ export const createTaskPrompt = ({ topic, description, difficulty }) => {
 - Каждый перенос строки внутри значения кодируй как последовательность \\n из двух символов — обратного слэша и буквы n. Не вставляй настоящий перенос строки внутрь JSON-строки.
 - Каждый обратный слэш в LaTeX экранируй двойным слэшем: например, \\\\le, \\\\dots и \\\\alpha.
 - Не добавляй лишние обратные слэши перед обычными буквами вне LaTeX.
-- Не добавляй решение, объяснение алгоритма или подсказки.
+- Решение необязательно. Если добавляешь его, положи разбор в объект solutions с ключами python и/или cpp; не добавляй готовое решение в initialCode.
 - Верни только валидный JSON без Markdown-обёртки, комментариев и дополнительного текста.
 
 Точная схема ответа:
@@ -142,6 +158,10 @@ export const createTaskPrompt = ({ topic, description, difficulty }) => {
   "inputFormat": "Формат входных данных в Markdown",
   "outputFormat": "Формат выходных данных в Markdown",
   "initialCode": "Необязательный стартовый шаблон без готового решения; обычно пустая строка",
+  "solutions": {
+    "python": "Необязательный разбор и код на Python",
+    "cpp": "Необязательный разбор и код на C++17"
+  },
   "tags": ["${inputTopic}"],
   "tests": [
     {
@@ -152,7 +172,7 @@ export const createTaskPrompt = ({ topic, description, difficulty }) => {
   ]
 }
 
-Сгенерируй не менее пяти тестов. Минимум два теста должны быть открытыми (isHidden: false), остальные можно сделать скрытыми (isHidden: true). Поля id, hidden, updatedAt, solutions, options и type добавлять нельзя. Поле isHidden разрешено только внутри объектов tests.`
+Сгенерируй не менее пяти тестов. Минимум два теста должны быть открытыми (isHidden: false), остальные можно сделать скрытыми (isHidden: true). Поля id, hidden, updatedAt, options и type добавлять нельзя. Поле isHidden разрешено только внутри объектов tests.`
 }
 
 const normalizeTest = (test, index) => {
@@ -223,6 +243,7 @@ export const normalizeImportedTask = (value) => {
     inputFormat: asText(parsed.inputFormat, 'inputFormat'),
     outputFormat: asText(parsed.outputFormat, 'outputFormat'),
     initialCode: asText(parsed.initialCode, 'initialCode'),
+    solutions: normalizeSolutions(parsed.solutions),
     tags,
     tests: normalizedTests,
   }
