@@ -143,29 +143,65 @@
 /* Autocomplete menu */
 .autocomplete-menu {
   position: absolute;
+  width: 245px;
+  max-width: calc(100% - 48px);
+  max-height: 240px;
+  padding: 4px;
   background: var(--bg-primary);
   border: 1px solid var(--border);
-  border-radius: 4px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-  max-width: 200px;
+  border-radius: 8px;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.2);
   z-index: 1000;
-  max-height: 200px;
   overflow-y: auto;
 }
 
+.autocomplete-hint {
+  padding: 5px 8px 6px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 10px;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
 .autocomplete-item {
-  padding: 8px 12px;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 7px 8px;
+  border-radius: 5px;
   cursor: pointer;
   color: var(--text-primary);
-  transition: background 0.2s;
+  transition: background 0.12s, color 0.12s;
   font-family: 'Courier New', monospace;
   font-size: 13px;
 }
 
 .autocomplete-item:hover,
 .autocomplete-item.selected {
-  background: #22c55e;
+  background: var(--primary);
   color: white;
+}
+
+.autocomplete-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.autocomplete-detail {
+  flex-shrink: 0;
+  color: var(--text-secondary);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 10px;
+}
+
+.autocomplete-item:hover .autocomplete-detail,
+.autocomplete-item.selected .autocomplete-detail {
+  color: rgba(255, 255, 255, 0.82);
 }
 
 /* Highlight.js цветовая схема */

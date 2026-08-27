@@ -1,11 +1,34 @@
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { executePython, executeCpp, runTests } from '../utils/executor'
 import CodeEditor from '../components/CodeEditor'
 import MarkdownRenderer from '../components/MarkdownRenderer'
 import Icon from '../components/Icon'
+import { getProblemById, getProblems } from '../utils/storage'
 import { createTaskPrompt, normalizeImportedTask } from '../utils/taskImport'
 
 const INITIAL_CODE = '# Напишите ваш код здесь\nprint("Hello, World!")'
+
+const getProblemIdFromLink = (value) => {
+  const input = String(value || '').trim()
+  if (!input) throw new Error('Вставьте ссылку на задачу.')
+
+  let url
+  try {
+    url = new URL(input, window.location.origin)
+  } catch {
+    throw new Error('Не удалось разобрать ссылку. Нужен адрес вида /problem/ID.')
+  }
+
+  const match = url.pathname.match(/\/problem\/([^/]+)/i)
+  if (!match) throw new Error('Ссылка должна вести на страницу задачи: /problem/ID.')
+  return decodeURIComponent(match[1])
+}
+
+const normalizeSiteTask = (problem, sourceLabel) => ({
+  ...normalizeImportedTask(problem),
+  id: problem.id,
+  sourceLabel,
+})
 
 function TaskPreview({ task, onClear }) {
   const openTests = task.tests.filter((test) => !test.isHidden)
@@ -24,7 +47,7 @@ function TaskPreview({ task, onClear }) {
 
       <div className="sandbox-task-tags">
         {task.tags.map((tag) => <span className="mini-tag" key={tag}>{tag}</span>)}
-        <span className="sandbox-task-source">Импортирована локально</span>
+        <span className="sandbox-task-source">{task.sourceLabel || 'Импортирована локально'}</span>
       </div>
 
       <div className="sandbox-task-markdown markdown-body">
@@ -109,6 +132,12 @@ function TestResults({ results }) {
 }
 
 function TaskImportPanel({ task, onTaskImport, onTaskClear }) {
+  const [importMode, setImportMode] = useState('site')
+  const [siteProblems, setSiteProblems] = useState([])
+  const [selectedProblemId, setSelectedProblemId] = useState('')
+  const [problemLink, setProblemLink] = useState('')
+  const [isLoadingProblems, setIsLoadingProblems] = useState(true)
+  const [isImporting, setIsImporting] = useState(false)
   const [showPromptForm, setShowPromptForm] = useState(false)
   const [topic, setTopic] = useState('')
   const [description, setDescription] = useState('')
@@ -118,7 +147,74 @@ function TaskImportPanel({ task, onTaskImport, onTaskClear }) {
   const [message, setMessage] = useState(null)
   const [isCopying, setIsCopying] = useState(false)
 
+  useEffect(() => {
+    let cancelled = false
+    setIsLoadingProblems(true)
+
+    getProblems()
+      .then((problems) => {
+        if (cancelled) return
+        const available = problems
+          .filter((problem) => !problem.hidden && (!problem.type || problem.type === 'code') && Array.isArray(problem.tests) && problem.tests.length > 0)
+          .sort((first, second) => String(first.title || '').localeCompare(String(second.title || ''), 'ru'))
+        setSiteProblems(available)
+      })
+      .catch(() => {
+        if (!cancelled) setSiteProblems([])
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoadingProblems(false)
+      })
+
+    return () => { cancelled = true }
+  }, [])
+
   const promptReady = topic.trim() && description.trim()
+
+  const importSiteProblem = async (problem, sourceLabel) => {
+    if (!problem) throw new Error('Задача не найдена.')
+    const importedTask = normalizeSiteTask(problem, sourceLabel)
+    onTaskImport(importedTask)
+    setMessage({ type: 'success', text: 'Задача загружена в песочницу и готова к проверке.' })
+  }
+
+  const handleProblemSelect = async (event) => {
+    const problemId = event.target.value
+    setSelectedProblemId(problemId)
+    if (!problemId) return
+
+    setIsImporting(true)
+    setMessage(null)
+    try {
+      const problem = siteProblems.find((item) => String(item.id) === String(problemId)) || await getProblemById(problemId)
+      await importSiteProblem(problem, 'Выбрана из задач сайта')
+    } catch (error) {
+      setMessage({ type: 'error', text: error.message })
+    } finally {
+      setIsImporting(false)
+    }
+  }
+
+  const handleImportByLink = async () => {
+    setIsImporting(true)
+    setMessage(null)
+    try {
+      const problemId = getProblemIdFromLink(problemLink)
+      const problem = siteProblems.find((item) => String(item.id) === String(problemId)) || await getProblemById(problemId)
+      await importSiteProblem(problem, 'Загружена по ссылке')
+    } catch (error) {
+      setMessage({ type: 'error', text: error.message })
+    } finally {
+      setIsImporting(false)
+    }
+  }
+
+  const handleClearImportedTask = () => {
+    setSelectedProblemId('')
+    setProblemLink('')
+    setMessage(null)
+    onTaskClear()
+  }
 
   const handleCreatePrompt = async () => {
     if (!promptReady) {
@@ -151,10 +247,10 @@ function TaskImportPanel({ task, onTaskImport, onTaskClear }) {
     }
   }
 
-  const handleImport = () => {
+  const handleImportJson = () => {
     try {
       const importedTask = normalizeImportedTask(jsonText)
-      onTaskImport(importedTask)
+      onTaskImport({ ...importedTask, sourceLabel: 'Импортирована локально' })
       setMessage({ type: 'success', text: 'Задача импортирована и готова к проверке.' })
     } catch (error) {
       setMessage({ type: 'error', text: error.message })
@@ -166,7 +262,7 @@ function TaskImportPanel({ task, onTaskImport, onTaskClear }) {
       <div className="sandbox-panel-heading">
         <div>
           <span className="sandbox-eyebrow">Инструмент</span>
-          <h2>Импортировать задачу</h2>
+          <h2>{task ? 'Задача в песочнице' : 'Добавить задачу'}</h2>
         </div>
         <Icon name="academicCap" size={22} />
       </div>
@@ -174,92 +270,162 @@ function TaskImportPanel({ task, onTaskImport, onTaskClear }) {
       {!task && (
         <>
           <p className="sandbox-panel-description">
-            Опишите, что хотите потренировать, получите JSON у любой нейросети и вставьте его сюда.
+            Выберите задачу с сайта, вставьте ссылку на неё или импортируйте JSON из нейросети.
           </p>
-          <button
-            className="btn btn-primary sandbox-full-button"
-            onClick={() => {
-              setShowPromptForm((value) => !value)
-              setMessage(null)
-            }}
-          >
-            <Icon name="academicCap" size={16} />
-            {showPromptForm ? 'Скрыть параметры' : 'Сформировать промпт'}
-          </button>
 
-          {showPromptForm && (
-            <div className="sandbox-prompt-form">
+          <div className="sandbox-import-tabs" role="tablist" aria-label="Способ импорта задачи">
+            <button
+              type="button"
+              className={`sandbox-import-tab ${importMode === 'site' ? 'active' : ''}`}
+              onClick={() => { setImportMode('site'); setMessage(null) }}
+              role="tab"
+              aria-selected={importMode === 'site'}
+            >
+              Задачи сайта
+            </button>
+            <button
+              type="button"
+              className={`sandbox-import-tab ${importMode === 'json' ? 'active' : ''}`}
+              onClick={() => { setImportMode('json'); setMessage(null) }}
+              role="tab"
+              aria-selected={importMode === 'json'}
+            >
+              JSON
+            </button>
+          </div>
+
+          {importMode === 'site' && (
+            <div className="sandbox-site-import">
               <label className="sandbox-field">
-                <span>Тема задачи</span>
-                <input
+                <span>Выбрать задачу</span>
+                <select
                   className="form-input"
-                  value={topic}
-                  onChange={(event) => setTopic(event.target.value)}
-                  placeholder="Например, графы"
-                  maxLength={120}
-                />
-              </label>
-              <label className="sandbox-field">
-                <span>Описание идеи</span>
-                <textarea
-                  className="form-textarea"
-                  value={description}
-                  onChange={(event) => setDescription(event.target.value)}
-                  placeholder="Что должна тренировать задача? Какие ограничения или сюжеты важны?"
-                  rows={5}
-                  maxLength={1000}
-                />
-              </label>
-              <label className="sandbox-field">
-                <span>Сложность</span>
-                <select className="form-input" value={difficulty} onChange={(event) => setDifficulty(event.target.value)}>
-                  <option value="easy">Начальная</option>
-                  <option value="medium">Средняя</option>
-                  <option value="hard">Сложная</option>
-                  <option value="olympiad">Олимпиадная</option>
+                  value={selectedProblemId}
+                  onChange={handleProblemSelect}
+                  disabled={isLoadingProblems || isImporting}
+                >
+                  <option value="">{isLoadingProblems ? 'Загрузка списка...' : 'Начните с выбора задачи'}</option>
+                  {siteProblems.map((problem) => (
+                    <option value={problem.id} key={problem.id}>{problem.title}</option>
+                  ))}
                 </select>
               </label>
-              <button className="btn btn-secondary sandbox-full-button" onClick={handleCreatePrompt} disabled={isCopying}>
-                <Icon name="document" size={16} />
-                {isCopying ? 'Копирование...' : 'Подтвердить и скопировать'}
+              {!isLoadingProblems && siteProblems.length === 0 && (
+                <p className="sandbox-muted sandbox-import-note">Подходящих задач пока нет. Используйте импорт по ссылке или JSON.</p>
+              )}
+
+              <div className="sandbox-import-divider"><span>или по ссылке</span></div>
+
+              <label className="sandbox-field">
+                <span>Ссылка на задачу</span>
+                <input
+                  className="form-input"
+                  value={problemLink}
+                  onChange={(event) => setProblemLink(event.target.value)}
+                  placeholder="https://site.ru/problem/problem-id"
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') {
+                      event.preventDefault()
+                      handleImportByLink()
+                    }
+                  }}
+                />
+              </label>
+              <button className="btn btn-primary sandbox-full-button" onClick={handleImportByLink} disabled={!problemLink.trim() || isImporting}>
+                <Icon name="link" size={16} />
+                {isImporting ? 'Загрузка...' : 'Загрузить по ссылке'}
               </button>
             </div>
           )}
 
-          {prompt && (
-            <div className="sandbox-prompt-output">
-              <div className="sandbox-subheading">
-                <span>Промпт</span>
-                <button className="btn-icon" onClick={handleCopyPrompt} title="Скопировать промпт" aria-label="Скопировать промпт">
-                  <Icon name="document" size={16} />
+          {importMode === 'json' && (
+            <>
+              <button
+                className="btn btn-secondary sandbox-full-button"
+                onClick={() => {
+                  setShowPromptForm((value) => !value)
+                  setMessage(null)
+                }}
+              >
+                <Icon name="academicCap" size={16} />
+                {showPromptForm ? 'Скрыть параметры' : 'Сформировать промпт'}
+              </button>
+
+              {showPromptForm && (
+                <div className="sandbox-prompt-form">
+                  <label className="sandbox-field">
+                    <span>Тема задачи</span>
+                    <input
+                      className="form-input"
+                      value={topic}
+                      onChange={(event) => setTopic(event.target.value)}
+                      placeholder="Например, графы"
+                      maxLength={120}
+                    />
+                  </label>
+                  <label className="sandbox-field">
+                    <span>Описание идеи</span>
+                    <textarea
+                      className="form-textarea"
+                      value={description}
+                      onChange={(event) => setDescription(event.target.value)}
+                      placeholder="Что должна тренировать задача? Какие ограничения или сюжеты важны?"
+                      rows={5}
+                      maxLength={1000}
+                    />
+                  </label>
+                  <label className="sandbox-field">
+                    <span>Сложность</span>
+                    <select className="form-input" value={difficulty} onChange={(event) => setDifficulty(event.target.value)}>
+                      <option value="easy">Начальная</option>
+                      <option value="medium">Средняя</option>
+                      <option value="hard">Сложная</option>
+                      <option value="olympiad">Олимпиадная</option>
+                    </select>
+                  </label>
+                  <button className="btn btn-secondary sandbox-full-button" onClick={handleCreatePrompt} disabled={isCopying}>
+                    <Icon name="document" size={16} />
+                    {isCopying ? 'Копирование...' : 'Подтвердить и скопировать'}
+                  </button>
+                </div>
+              )}
+
+              {prompt && (
+                <div className="sandbox-prompt-output">
+                  <div className="sandbox-subheading">
+                    <span>Промпт</span>
+                    <button className="btn-icon" onClick={handleCopyPrompt} title="Скопировать промпт" aria-label="Скопировать промпт">
+                      <Icon name="document" size={16} />
+                    </button>
+                  </div>
+                  <textarea className="sandbox-prompt-textarea" value={prompt} readOnly rows={10} />
+                </div>
+              )}
+
+              <div className="sandbox-json-import">
+                <div className="sandbox-subheading">
+                  <span>JSON от нейросети</span>
+                  <span className="sandbox-muted">только одна задача</span>
+                </div>
+                <textarea
+                  className="sandbox-prompt-textarea sandbox-json-textarea"
+                  value={jsonText}
+                  onChange={(event) => setJsonText(event.target.value)}
+                  placeholder={'{\n  "title": "...",\n  "description": "...",\n  "tests": []\n}'}
+                  rows={9}
+                  spellCheck="false"
+                />
+                <button className="btn btn-primary sandbox-full-button" onClick={handleImportJson} disabled={!jsonText.trim()}>
+                  <Icon name="upload" size={16} />
+                  Импортировать JSON
                 </button>
               </div>
-              <textarea className="sandbox-prompt-textarea" value={prompt} readOnly rows={10} />
-            </div>
+            </>
           )}
-
-          <div className="sandbox-json-import">
-            <div className="sandbox-subheading">
-              <span>JSON от нейросети</span>
-              <span className="sandbox-muted">только одна задача</span>
-            </div>
-            <textarea
-              className="sandbox-prompt-textarea sandbox-json-textarea"
-              value={jsonText}
-              onChange={(event) => setJsonText(event.target.value)}
-              placeholder={'{\n  "title": "...",\n  "description": "...",\n  "tests": []\n}'}
-              rows={9}
-              spellCheck="false"
-            />
-            <button className="btn btn-primary sandbox-full-button" onClick={handleImport} disabled={!jsonText.trim()}>
-              <Icon name="upload" size={16} />
-              Импортировать JSON
-            </button>
-          </div>
         </>
       )}
 
-      {task && <TaskPreview task={task} onClear={onTaskClear} />}
+      {task && <TaskPreview task={task} onClear={handleClearImportedTask} />}
 
       {message && <div className={`sandbox-message ${message.type}`}>{message.text}</div>}
     </aside>

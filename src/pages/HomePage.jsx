@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { getProblems, getTags } from '../utils/storage'
 
@@ -9,20 +9,22 @@ function HomePage() {
   const [availableTags, setAvailableTags] = useState([])
 
   useEffect(() => {
-    getProblems().then((all) => setProblems(all.filter((p) => !p.hidden)))
+    getProblems().then((all) => setProblems(all.filter((problem) => !problem.hidden)))
     getTags().then(setAvailableTags)
   }, [])
 
-  const filteredProblems = problems.filter((p) => {
-    const matchesSearch = p.title.toLowerCase().includes(search.toLowerCase())
-    const matchesTags = selectedTags.length === 0 || selectedTags.every((t) => p.tags?.includes(t))
+  const filteredProblems = problems.filter((problem) => {
+    const matchesSearch = problem.title.toLowerCase().includes(search.toLowerCase())
+    const matchesTags = selectedTags.length === 0 || selectedTags.every((tag) => problem.tags?.includes(tag))
     return matchesSearch && matchesTags
   })
 
   const toggleTag = (tagName) => {
-    setSelectedTags((prev) =>
-      prev.includes(tagName) ? prev.filter((t) => t !== tagName) : [...prev, tagName]
-    )
+    setSelectedTags((previous) => (
+      previous.includes(tagName)
+        ? previous.filter((tag) => tag !== tagName)
+        : [...previous, tagName]
+    ))
   }
 
   return (
@@ -33,28 +35,44 @@ function HomePage() {
           placeholder="Поиск задач..."
           className="search-input"
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(event) => setSearch(event.target.value)}
+          aria-label="Поиск задач"
         />
       </div>
 
-      <div className="tags-filter">
-        {availableTags.map((tag) => (
-          <button
-            key={tag.id}
-            className={`tag-chip ${selectedTags.includes(tag.name) ? 'active' : ''}`}
-            onClick={() => toggleTag(tag.name)}
-          >
-            {tag.name}
-          </button>
-        ))}
-      </div>
+      <section className="tag-filter-section" aria-label="Фильтр задач по тегам">
+        <div className="tag-filter-heading">
+          <span className="tag-filter-title">Темы</span>
+          <span className="tag-filter-count">
+            {selectedTags.length > 0 ? `Выбрано: ${selectedTags.length}` : `${availableTags.length} тегов`}
+          </span>
+          {selectedTags.length > 0 && (
+            <button type="button" className="tag-filter-reset" onClick={() => setSelectedTags([])}>
+              Сбросить
+            </button>
+          )}
+        </div>
+        <div className="tags-filter">
+          {availableTags.map((tag) => (
+            <button
+              key={tag.id}
+              type="button"
+              className={`tag-chip ${selectedTags.includes(tag.name) ? 'active' : ''}`}
+              onClick={() => toggleTag(tag.name)}
+              aria-pressed={selectedTags.includes(tag.name)}
+            >
+              {tag.name}
+            </button>
+          ))}
+        </div>
+      </section>
 
       <div className="problems-grid">
-        {filteredProblems.map((p) => (
-          <Link to={`/problem/${p.id}`} key={p.id} className="problem-card">
-            <h3>{p.title}</h3>
+        {filteredProblems.map((problem) => (
+          <Link to={`/problem/${problem.id}`} key={problem.id} className="problem-card">
+            <h3>{problem.title}</h3>
             <div className="p-tags">
-              {p.tags?.map((t) => <span key={t} className="mini-tag">{t}</span>)}
+              {problem.tags?.map((tag) => <span key={tag} className="mini-tag">{tag}</span>)}
             </div>
           </Link>
         ))}
